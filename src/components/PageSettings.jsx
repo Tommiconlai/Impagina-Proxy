@@ -1,4 +1,4 @@
-import { PAPER_FORMATS, getGridInfo } from '../utils/pdfGenerator';
+import { PAPER_FORMATS, CARD_W, CARD_H, getGridInfo } from '../utils/pdfGenerator';
 import { PageCanvas } from './PagePreview';
 
 const DPI_OPTIONS = [150, 300, 600, 800, 1000, 1200];
@@ -7,8 +7,8 @@ const BLEED_OPTIONS = [0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0];
 export default function PageSettings({ formatKey, setFormatKey, bleedMm, setBleedMm, dpi, setDpi }) {
     const { cols, rows, perPage } = getGridInfo(formatKey, bleedMm);
     const [pw, ph] = PAPER_FORMATS[formatKey];
-    const totalWmm = (63 + bleedMm * 2).toFixed(1);
-    const totalHmm = (89 + bleedMm * 2).toFixed(1);
+    const totalWmm = (CARD_W + bleedMm * 2).toFixed(1);
+    const totalHmm = (CARD_H + bleedMm * 2).toFixed(1);
 
     return (
         <>
