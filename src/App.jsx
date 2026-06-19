@@ -25,11 +25,12 @@ export default function App() {
     imagesRef.current.forEach(i => URL.revokeObjectURL(i.preview));
   }, []);
 
-  const handleImagesAdded = useCallback((files) => {
+  const handleImagesAdded = useCallback((files, { bleedFill = false } = {}) => {
     const newItems = files.map(file => ({
       file,
       preview: URL.createObjectURL(file),
       id: `${file.name}-${Date.now()}-${Math.random()}`,
+      bleedFill, // true per import Scryfall: genera l'abbondanza in fase di disegno
     }));
     setImages(prev => [...prev, ...newItems]);
     setError(null);
@@ -52,7 +53,7 @@ export default function App() {
     setError(null);
     setLoading(true);
     try {
-      await generatePDF(images.map(i => i.file), formatKey, bleedMm, dpi);
+      await generatePDF(images.map(i => ({ file: i.file, bleedFill: i.bleedFill })), formatKey, bleedMm, dpi);
     } catch (err) {
       setError(err.message || 'Errore durante la generazione del PDF.');
     } finally {
@@ -137,7 +138,7 @@ export default function App() {
       <ScryfallImportModal
         open={importOpen}
         onClose={() => setImportOpen(false)}
-        onImport={handleImagesAdded}
+        onImport={(files) => handleImagesAdded(files, { bleedFill: true })}
       />
     </div>
   );

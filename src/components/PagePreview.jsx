@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useMemo } from 'react';
-import { getGridInfo, CARD_W, CARD_H, cropMarkSpan } from '../utils/pdfGenerator';
+import { getGridInfo, CARD_W, CARD_H, cropMarkSpan, drawCardWithBleed } from '../utils/pdfGenerator';
 import { IconX, IconPlus, IconImage, IconDownload } from './icons';
 
 // ── Carica un'immagine come HTMLImageElement (async) ─────────
@@ -75,7 +75,8 @@ export function PageCanvas({ pageImages, formatKey, bleedMm, previewW, empty }) 
         const ctx = canvas.getContext('2d');
 
         const cache = cacheRef.current;
-        const load = (src) => {
+        const load = (item) => {
+            const src = item?.src;
             if (!src) return null;
             return cache.get(src) || loadImage(src); // hit in cache = nessun re-decode
         };
@@ -90,7 +91,7 @@ export function PageCanvas({ pageImages, formatKey, bleedMm, previewW, empty }) 
             // Ricostruisce la cache con le sole immagini della pagina corrente
             // (memoria limitata; le immagini cancellate vengono scartate e liberate).
             const next = new Map();
-            (pageImages || []).forEach((src, i) => { if (src && imgs[i]) next.set(src, imgs[i]); });
+            (pageImages || []).forEach((item, i) => { if (item?.src && imgs[i]) next.set(item.src, imgs[i]); });
             cacheRef.current = next;
 
             const { cols, rows, cellW, cellH, offsetX, offsetY } = info;
@@ -107,7 +108,11 @@ export function PageCanvas({ pageImages, formatKey, bleedMm, previewW, empty }) 
                 const h = cellH * scale;
 
                 if (!empty && imgs[i]) {
-                    ctx.drawImage(imgs[i], x, y, w, h);
+                    if (pageImages[i]?.bleedFill) {
+                        drawCardWithBleed(ctx, imgs[i], x, y, w, h, bleedPx);
+                    } else {
+                        ctx.drawImage(imgs[i], x, y, w, h);
+                    }
                 } else {
                     ctx.fillStyle = empty ? '#f0f0f0' : '#d0d0d0';
                     ctx.fillRect(x + bleedPx, y + bleedPx, cardWpx, cardHpx);
@@ -205,7 +210,10 @@ export default function PagePreview({ images, formatKey, bleedMm, onRemove, onAd
 
     // Immagini della pagina corrente (riferimento stabile finché non cambiano).
     const pageImages = useMemo(
-        () => Array.from({ length: perPage }, (_, i) => images[page * perPage + i]?.preview ?? null),
+        () => Array.from({ length: perPage }, (_, i) => {
+            const it = images[page * perPage + i];
+            return it ? { src: it.preview, bleedFill: it.bleedFill } : null;
+        }),
         [images, perPage, page]
     );
 

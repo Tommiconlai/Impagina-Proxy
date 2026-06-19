@@ -126,6 +126,39 @@ function drawCropMarks(doc, x, y, bleed, limits) {
 const MM_TO_PX = (dpi) => dpi / 25.4;
 
 /**
+ * Disegna `img` come carta a misura di taglio (1:1) nell'area centrale della
+ * cella e genera l'abbondanza (bleed) attorno con edge-stretch: la riga/colonna
+ * di pixel più esterna viene stirata verso il bordo cella, gli angoli replicati.
+ * Ricrea i bordi mancanti per il taglio al vivo di immagini senza abbondanza
+ * (es. Scryfall). bleedPx = 0 → la carta riempie tutta la cella.
+ */
+export function drawCardWithBleed(ctx, img, x, y, cellW, cellH, bleedPx) {
+  const b = Math.max(0, bleedPx);
+  const tx = x + b;
+  const ty = y + b;
+  const tw = cellW - 2 * b;
+  const th = cellH - 2 * b;
+  const iw = img.naturalWidth || img.width;
+  const ih = img.naturalHeight || img.height;
+  if (tw <= 0 || th <= 0 || !iw || !ih) return;
+
+  // Carta a misura di taglio (aspect carta ≈ trim → nessuna distorsione visibile)
+  ctx.drawImage(img, 0, 0, iw, ih, tx, ty, tw, th);
+  if (b <= 0) return;
+
+  // Bordi: riga/colonna esterna stirata nell'abbondanza
+  ctx.drawImage(img, 0, 0, iw, 1, tx, ty - b, tw, b);          // alto
+  ctx.drawImage(img, 0, ih - 1, iw, 1, tx, ty + th, tw, b);    // basso
+  ctx.drawImage(img, 0, 0, 1, ih, tx - b, ty, b, th);          // sinistra
+  ctx.drawImage(img, iw - 1, 0, 1, ih, tx + tw, ty, b, th);    // destra
+  // Angoli: pixel d'angolo replicato
+  ctx.drawImage(img, 0, 0, 1, 1, tx - b, ty - b, b, b);             // alto-sx
+  ctx.drawImage(img, iw - 1, 0, 1, 1, tx + tw, ty - b, b, b);       // alto-dx
+  ctx.drawImage(img, 0, ih - 1, 1, 1, tx - b, ty + th, b, b);       // basso-sx
+  ctx.drawImage(img, iw - 1, ih - 1, 1, 1, tx + tw, ty + th, b, b); // basso-dx
+}
+
+/**
  * Carica un File come HTMLImageElement.
  */
 function loadImageElement(file) {
@@ -140,12 +173,11 @@ function loadImageElement(file) {
 
 /**
  * Ridimensiona e comprime un'immagine su canvas, restituendo un dataURL JPEG.
- * Questo è il cuore dell'ottimizzazione: invece di passare il file raw a jsPDF
- * (che lo tiene in memoria come stringa base64 intera), lo ridimensioniamo
- * alle dimensioni esatte della cella PDF e lo comprimiamo in JPEG 0.85.
- * Riduzione tipica: 5–10× per immagine.
+ * Ridimensiona alle dimensioni esatte della cella PDF e comprime in JPEG 0.85
+ * (riduzione tipica 5–10×). Con `bleedFill` la carta è disegnata a misura di
+ * taglio e l'abbondanza è generata con edge-stretch; altrimenti object-fit cover.
  */
-function compressImage(img, cellWmm, cellHmm, dpi, quality = 0.85) {
+function compressImage(img, cellWmm, cellHmm, dpi, bleedMm, bleedFill, quality = 0.85) {
   const mmToPx = MM_TO_PX(dpi);
   const w = Math.round(cellWmm * mmToPx);
   const h = Math.round(cellHmm * mmToPx);
@@ -155,21 +187,26 @@ function compressImage(img, cellWmm, cellHmm, dpi, quality = 0.85) {
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, w, h);
-  // Copre tutta la cella mantenendo le proporzioni (object-fit: cover)
-  const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
-  const sw = img.naturalWidth * scale;
-  const sh = img.naturalHeight * scale;
-  const sx = (w - sw) / 2;
-  const sy = (h - sh) / 2;
-  ctx.drawImage(img, sx, sy, sw, sh);
+
+  if (bleedFill) {
+    drawCardWithBleed(ctx, img, 0, 0, w, h, Math.round(bleedMm * mmToPx));
+  } else {
+    // object-fit: cover (immagini caricate a mano)
+    const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
+    const sw = img.naturalWidth * scale;
+    const sh = img.naturalHeight * scale;
+    const sx = (w - sw) / 2;
+    const sy = (h - sh) / 2;
+    ctx.drawImage(img, sx, sy, sw, sh);
+  }
   return canvas.toDataURL('image/jpeg', quality);
 }
 
 /**
  * Genera e scarica il PDF.
  */
-export async function generatePDF(files, formatKey, bleedMm, dpi = 600) {
-  if (!files || files.length === 0) throw new Error('Nessuna immagine selezionata.');
+export async function generatePDF(items, formatKey, bleedMm, dpi = 600) {
+  if (!items || items.length === 0) throw new Error('Nessuna immagine selezionata.');
 
   const { cols, rows, cellW, cellH, pageW, pageH, orientation, offsetX, offsetY } = getGridInfo(formatKey, bleedMm);
 
@@ -190,20 +227,21 @@ export async function generatePDF(files, formatKey, bleedMm, dpi = 600) {
   let imgIndex = 0;
   const perPage = cols * rows;
 
-  while (imgIndex < files.length) {
+  while (imgIndex < items.length) {
     if (imgIndex > 0) doc.addPage([pageW, pageH], orientation);
 
     let posOnPage = 0;
 
-    while (posOnPage < perPage && imgIndex < files.length) {
+    while (posOnPage < perPage && imgIndex < items.length) {
       const col = posOnPage % cols;
       const row = Math.floor(posOnPage / cols);
       const x = offsetX + col * cellW;
       const y = offsetY + row * cellH;
 
       // Carica, ridimensiona e comprimi prima di passare a jsPDF
-      const imgEl = await loadImageElement(files[imgIndex]);
-      const jpeg = compressImage(imgEl, cellW, cellH, dpi);
+      const item = items[imgIndex];
+      const imgEl = await loadImageElement(item.file);
+      const jpeg = compressImage(imgEl, cellW, cellH, dpi, bleedMm, item.bleedFill);
       doc.addImage(jpeg, 'JPEG', x, y, cellW, cellH);
       const limits = {
         left:  (col === 0 ? offsetX : 0) + bleedMm,
