@@ -36,11 +36,13 @@ before restarting.
 
 | File | Role |
 |------|------|
-| `src/App.jsx` | Root: state (images, format, bleed, dpi), header/sidebar/main layout, `react-dropzone` (full-area drag&drop + `open()` for the + button) |
+| `src/App.jsx` | Root: state (images, format, bleed, dpi, import modal), header/sidebar/main layout, `react-dropzone` (full-area drag&drop + `open()` for the + button) |
 | `src/components/PageSettings.jsx` | Sidebar: format/bleed/dpi selects + layout info box (griglia / immagini per pagina / dimensioni) |
-| `src/components/PagePreview.jsx` | Preview: one large centered page (`PageCanvas`) + per-card hover-delete overlay; footer with pager + count + green add-photos button |
+| `src/components/PagePreview.jsx` | Preview: one large centered page (`PageCanvas`) + per-card hover-delete overlay; footer with pager + count + green "+" menu (carica file / importa Scryfall) |
+| `src/components/ScryfallImportModal.jsx` | Modal: paste a card list → fetch from Scryfall → add to images (uses `utils/scryfall.js`) |
 | `src/utils/pdfGenerator.js` | Grid math (`getGridInfo`, constants) + `generatePDF` (jspdf, dynamically imported) |
-| `src/components/icons.jsx` | Custom lucide-style SVG icon set (currentColor), incl. `IconPlus` |
+| `src/utils/scryfall.js` | `parseCardList` (text → {qty,name}) + `fetchScryfallImages` (`/cards/collection` batched, downloads PNGs as `File`; DFC → both faces) |
+| `src/components/icons.jsx` | Custom lucide-style SVG icon set (currentColor), incl. `IconPlus`, `IconDownload` |
 | `src/index.css` | All styling + design tokens |
 | `public/favicon.svg` | Branded gold layout-grid mark |
 
@@ -66,6 +68,12 @@ Tokens at the top of `src/index.css`. Also recorded in this project's Claude mem
 
 ## Done recently
 
+- **Scryfall import:** the green "+" is now a menu — "Carica file" (existing picker) or
+  "Importa da Scryfall". The Scryfall option opens a modal (`ScryfallImportModal`) where you
+  paste a `1x Card Name` list; `utils/scryfall.js` resolves names via `/cards/collection`
+  (batched 75), downloads the PNGs as `File`s, and feeds them through the normal pipeline.
+  Double-faced cards import both faces; missing names are listed. Images arrive as blob
+  object URLs (same-origin) so the canvas/PDF export is not tainted. Verified live.
 - **Preview image cache:** `PageCanvas` keeps a `src → HTMLImageElement` cache so redraws
   (delete, resize, format change) no longer re-decode every image — deleting a card is now
   0 re-decodes (was N) and the preview no longer "reloads from scratch"/flashes. Cache is

@@ -3,6 +3,7 @@ import './index.css';
 import { useDropzone } from 'react-dropzone';
 import PageSettings from './components/PageSettings';
 import PagePreview from './components/PagePreview';
+import ScryfallImportModal from './components/ScryfallImportModal';
 import { generatePDF, getGridInfo } from './utils/pdfGenerator';
 import { IconFile, IconAlert, IconLayout, IconTrash } from './components/icons';
 
@@ -13,6 +14,7 @@ export default function App() {
   const [dpi, setDpi] = useState(600);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [importOpen, setImportOpen] = useState(false);
   const { perPage } = getGridInfo(formatKey, bleedMm);
 
   // Revoca gli object URL residui allo smontaggio (evita leak di memoria).
@@ -125,11 +127,18 @@ export default function App() {
             bleedMm={bleedMm}
             onRemove={handleRemove}
             onAddPhotos={open}
+            onImportScryfall={() => setImportOpen(true)}
             isDragActive={isDragActive}
             missing={missing}
           />
         </main>
       </div>
+
+      <ScryfallImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImport={handleImagesAdded}
+      />
     </div>
   );
 }
