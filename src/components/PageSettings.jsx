@@ -1,5 +1,4 @@
 import { PAPER_FORMATS, CARD_W, CARD_H, getGridInfo } from '../utils/pdfGenerator';
-import { PageCanvas } from './PagePreview';
 
 const DPI_OPTIONS = [150, 300, 600, 800, 1000, 1200];
 const BLEED_OPTIONS = [0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0];
@@ -58,15 +57,6 @@ export default function PageSettings({ formatKey, setFormatKey, bleedMm, setBlee
             {/* Info layout */}
             <div className="sidebar-section">
                 <h2>Layout</h2>
-                <div className="layout-preview" style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
-                    <PageCanvas
-                        pageImages={[]}
-                        formatKey={formatKey}
-                        bleedMm={bleedMm}
-                        previewW={240}
-                        empty
-                    />
-                </div>
                 <div className="info-box">
                     <strong>Dimensione carta:</strong> {pw}×{ph} mm<br />
                     <strong>Dimensione cella:</strong> {totalWmm}×{totalHmm} mm<br />

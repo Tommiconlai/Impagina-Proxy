@@ -1,10 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import './index.css';
-import ImageUploader from './components/ImageUploader';
+import { useDropzone } from 'react-dropzone';
 import PageSettings from './components/PageSettings';
 import PagePreview from './components/PagePreview';
 import { generatePDF, getGridInfo } from './utils/pdfGenerator';
-import { IconFile, IconTrash, IconAlert, IconLayout, IconX } from './components/icons';
+import { IconFile, IconAlert, IconLayout, IconTrash } from './components/icons';
 
 export default function App() {
   const [images, setImages] = useState([]);
@@ -58,6 +58,14 @@ export default function App() {
     }
   };
 
+  // Dropzone: drag&drop sull'intera area preview + open() per il bottone "+".
+  const { getRootProps, getInputProps, open, isDragActive } = useDropzone({
+    accept: { 'image/*': ['.png', '.jpg', '.jpeg', '.webp'] },
+    onDrop: (accepted) => { if (accepted.length > 0) handleImagesAdded(accepted); },
+    noClick: true,
+    noKeyboard: true,
+  });
+
   const missing = images.length === 0 || perPage === 0 ? 0 : (perPage - (images.length % perPage)) % perPage;
 
   return (
@@ -94,6 +102,11 @@ export default function App() {
                 : <><IconFile size={18} /> Genera PDF</>
               }
             </button>
+            {images.length > 0 && (
+              <button className="btn-secondary" onClick={handleClearAll}>
+                <IconTrash size={15} /> Elimina tutte
+              </button>
+            )}
             {error && (
               <div className="info-box info-box-error">
                 <IconAlert size={15} style={{ flexShrink: 0, marginTop: 2 }} />
@@ -103,59 +116,18 @@ export default function App() {
           </div>
         </aside>
 
-        {/* Main */}
-        <main className="main-content">
-
-          {/* ── Riga superiore: Uploader | Preview pagine ── */}
-          <div className="upload-preview-row">
-            {/* Drop zone compatta */}
-            <div className="upload-column">
-              <ImageUploader onImagesAdded={handleImagesAdded} />
-            </div>
-
-            {/* Preview pagine + layout vuoto */}
-            <div className="preview-column">
-              <PagePreview
-                images={images}
-                formatKey={formatKey}
-                bleedMm={bleedMm}
-              />
-            </div>
-          </div>
-
-          {/* ── Riga inferiore: Thumbnails ── */}
-          {images.length > 0 && (
-            <div className="images-section">
-              <div className="images-header">
-                <h2>Immagini caricate</h2>
-                <div className="images-actions">
-                  <span className="badge">{images.length} img</span>
-                  {missing > 0 && (
-                    <span className="badge badge-warning">{missing} immagini mancanti</span>
-                  )}
-                  <button className="btn-secondary" onClick={handleClearAll}>
-                    <IconTrash size={15} /> Elimina tutte
-                  </button>
-                </div>
-              </div>
-              <div className="image-list">
-                {images.map((item) => (
-                  <div key={item.id} className="image-list-row">
-                    <span className="image-list-name" title={item.file.name}>
-                      {item.file.name}
-                    </span>
-                    <button
-                      className="image-list-remove"
-                      onClick={() => handleRemove(item.id)}
-                      title="Rimuovi"
-                      aria-label={`Rimuovi ${item.file.name}`}
-                    ><IconX size={14} /></button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
+        {/* Main — area drop + preview grande */}
+        <main className="main-content" {...getRootProps()}>
+          <input {...getInputProps()} />
+          <PagePreview
+            images={images}
+            formatKey={formatKey}
+            bleedMm={bleedMm}
+            onRemove={handleRemove}
+            onAddPhotos={open}
+            isDragActive={isDragActive}
+            missing={missing}
+          />
         </main>
       </div>
     </div>

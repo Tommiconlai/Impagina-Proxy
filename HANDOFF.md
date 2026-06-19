@@ -24,20 +24,23 @@ npm run lint
 
 Preview via Claude Code: `preview_start "vite-dev"` (config in `.claude/launch.json`,
 which is gitignored and auto-created if missing). Screenshot empty AND populated states.
-To populate without picking files, inject test images into the dropzone `<input>` with a
-`DataTransfer` + dispatched `change` event.
+To populate without picking files, inject test images into the hidden `<input type=file>`
+with a `DataTransfer` + dispatched `change` event (the + button calls react-dropzone's
+`open()`; drag&drop works on the whole preview area).
+
+Gotcha: vite ignores the `PORT` env var, so `autoPort` assigns a port vite won't use —
+keep `port: 5173` and, if `preview_stop` leaves the vite child listening on 5173, kill it
+before restarting.
 
 ## File map
 
 | File | Role |
 |------|------|
-| `src/App.jsx` | Root: state (images, format, bleed, dpi), header/sidebar/main layout, thumbnail list |
-| `src/components/ImageUploader.jsx` | react-dropzone drop zone |
-| `src/components/PageSettings.jsx` | Sidebar: format/bleed/dpi selects + layout mini-preview + info box |
-| `src/components/PagePreview.jsx` | ANTEPRIMA: canvas page previews + `PageCanvas` (shared w/ sidebar) + pagination |
-| `src/components/VirtualThumbGrid.jsx` | Lazy thumb grid — **currently NOT imported by App** (see TODO) |
+| `src/App.jsx` | Root: state (images, format, bleed, dpi), header/sidebar/main layout, `react-dropzone` (full-area drag&drop + `open()` for the + button) |
+| `src/components/PageSettings.jsx` | Sidebar: format/bleed/dpi selects + layout info box (griglia / immagini per pagina / dimensioni) |
+| `src/components/PagePreview.jsx` | Preview: one large centered page (`PageCanvas`) + per-card hover-delete overlay; footer with pager + count + green add-photos button |
 | `src/utils/pdfGenerator.js` | Grid math (`getGridInfo`, constants) + `generatePDF` (jspdf, dynamically imported) |
-| `src/components/icons.jsx` | Custom lucide-style SVG icon set (currentColor) |
+| `src/components/icons.jsx` | Custom lucide-style SVG icon set (currentColor), incl. `IconPlus` |
 | `src/index.css` | All styling + design tokens |
 | `public/favicon.svg` | Branded gold layout-grid mark |
 
@@ -57,26 +60,36 @@ Tokens at the top of `src/index.css`. Also recorded in this project's Claude mem
   elevated panel), staggered fade-up entrance, `prefers-reduced-motion` guard.
 - **Warning badge** (`.badge-warning`, "immagini mancanti") = red-coral, kept distinct
   from the gold accent.
+- **Add-photos button** (`.add-photos-btn`) is green `#2ecc71` — a deliberate add/create
+  affordance, intentionally distinct from the gold accent and the red delete/warning color.
+  Don't recolor it to gold. Per-card delete uses `--danger` (red border + corner ×).
 
 ## Done recently
 
-Full design pass: UX critique → fixes (contrast 4.5:1, empty-state de-duplication,
-responsive `<900px` stack + `100dvh`, touch targets, focus-visible) → custom SVG icons +
-branded favicon + header logo/tagline → depth/elevation/light-table → Bricolage+Hanken
-type → code-split PDF libs (initial bundle 658 kB → 269 kB; jspdf/html2canvas lazy on
-first export) → warm-gold rebrand + grain. All verified live + `npm run build` green.
+- **Interactive preview redesign:** one large centered page (replaces the 4-up small
+  grid), pagination moved to a bottom-center `‹ n/N ›` pager (step 1), green **+**
+  add-photos button + full-area drag&drop. Per-card delete: hover a card → red border +
+  corner × removes that image. Removed the bottom filename list; **Elimina tutte** is now
+  in the sidebar Esporta section. Sidebar Layout keeps only the info box (mini-preview
+  dropped). `ImageUploader` deleted (dropzone moved into `App`); added `IconPlus`.
+- **Bug/perf fixes:** restored JPEG quality 0.85 in `pdfGenerator` (was 0.97, defeated
+  compression); removed `setState`-in-effect in `PagePreview` (offset derived in render);
+  memoized grid info + page images; cancel stale async canvas draws; revoke object URLs on
+  unmount; deleted unused `VirtualThumbGrid`.
+- Earlier: full design pass — contrast/empty-state/responsive/focus fixes, custom SVG icons
+  + branded favicon, depth/light-table, Bricolage+Hanken type, code-split PDF libs
+  (jspdf/html2canvas lazy), warm-gold rebrand + grain.
+
+All verified live + `npm run lint` clean + `npm run build` green.
 
 ## Known issues / TODO
 
-- **Lint (3 pre-existing errors)** in `src/components/PagePreview.jsx`:
-  `react-hooks/set-state-in-effect` on the page-offset reset/clamp effects. App runs and
-  builds fine (`vite build` does not lint). Fix by deriving the clamped offset during
-  render instead of in an effect. Needs populated-state testing.
 - **`public/vite.svg`** is dead (favicon switched to `favicon.svg`). Safe to delete.
-- **`VirtualThumbGrid.jsx`** is not imported anywhere — App renders a plain filename list.
-  Decide: wire it in (for large image sets) or remove.
 - **A11y:** sidebar `<select>`s are labeled by `<h2>` section titles, not `<label for>` /
   `aria-label`. Functional but could be improved.
+- **Touch:** the per-card delete × reveals on hover, so it's not reachable on touch
+  devices (no tap-to-reveal). Fine for the desktop print workflow; revisit if mobile
+  matters.
 - **No tests.**
 
 ## Conventions

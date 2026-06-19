@@ -1,7 +1,6 @@
 import { useRef, useEffect, useState, useMemo } from 'react';
 import { getGridInfo, CARD_W, CARD_H } from '../utils/pdfGenerator';
-
-const GAP_PX = 8; // gap tra le pagine affiancate in px
+import { IconX, IconPlus } from './icons';
 
 // ── Carica un'immagine come HTMLImageElement (async) ─────────
 function loadImage(src) {
@@ -120,17 +119,16 @@ export function PageCanvas({ pageImages, formatKey, bleedMm, previewW, empty }) 
 }
 
 // ── Componente principale ─────────────────────────────────────
-export default function PagePreview({ images, formatKey, bleedMm }) {
+export default function PagePreview({ images, formatKey, bleedMm, onRemove, onAddPhotos, isDragActive, missing }) {
     const [pageOffset, setPageOffset] = useState(0);
-    const [containerW, setContainerW] = useState(0);
-    const panelRef = useRef(null);
+    const [box, setBox] = useState({ w: 0, h: 0 });
+    const stageRef = useRef(null);
 
     const info = useMemo(() => getGridInfo(formatKey, bleedMm), [formatKey, bleedMm]);
     const perPage = Math.max(1, info.perPage);
     const totalPages = images.length === 0 ? 1 : Math.ceil(images.length / perPage);
 
-    // Reset offset quando cambiano format/bleed — setState durante il render
-    // (pattern "You Might Not Need an Effect"), non dentro un useEffect.
+    // Reset pagina al cambio formato/bleed — setState durante il render (no effect).
     const [prevFmt, setPrevFmt] = useState(formatKey);
     const [prevBleed, setPrevBleed] = useState(bleedMm);
     if (prevFmt !== formatKey || prevBleed !== bleedMm) {
@@ -139,86 +137,121 @@ export default function PagePreview({ images, formatKey, bleedMm }) {
         setPageOffset(0);
     }
 
-    // Offset effettivo: clamp derivato durante il render (niente effect)
-    const offset = Math.min(pageOffset, Math.max(0, totalPages - 1));
+    // Pagina corrente con clamp derivato (totalPages >= 1).
+    const page = Math.min(pageOffset, totalPages - 1);
 
-    // Misura la larghezza del container con ResizeObserver
+    // Misura lo stage (larghezza + altezza disponibili) per dimensionare la pagina.
     useEffect(() => {
-        const el = panelRef.current;
+        const el = stageRef.current;
         if (!el) return;
-        const ro = new ResizeObserver(entries => {
-            const w = entries[0]?.contentRect.width ?? 0;
-            setContainerW(w);
+        const ro = new ResizeObserver(([entry]) => {
+            const r = entry.contentRect;
+            setBox({ w: r.width, h: r.height });
         });
         ro.observe(el);
         return () => ro.disconnect();
     }, []);
 
-    // Array immagini per pagina memoizzato: riferimenti stabili finché
-    // images/perPage/totalPages non cambiano, così PageCanvas non ricarica
-    // e ridisegna le immagini a ogni render del parent.
-    const pageImagesList = useMemo(
-        () => Array.from({ length: totalPages }, (_, pageIdx) =>
-            Array.from({ length: perPage }, (_, i) =>
-                images[pageIdx * perPage + i]?.preview ?? null
-            )
-        ),
-        [images, perPage, totalPages]
+    // La pagina riempie lo spazio mantenendo le proporzioni carta,
+    // limitata sia in larghezza sia in altezza.
+    const PAD = 16;
+    const ratio = info.pageW / info.pageH;
+    const availW = Math.max(0, box.w - PAD * 2);
+    const availH = Math.max(0, box.h - PAD * 2);
+    const pageW = box.w > 0
+        ? Math.max(160, Math.floor(Math.min(availW, availH * ratio)))
+        : 360; // fallback prima che il ResizeObserver risponda
+    const scale = pageW / info.pageW;
+
+    // Immagini della pagina corrente (riferimento stabile finché non cambiano).
+    const pageImages = useMemo(
+        () => Array.from({ length: perPage }, (_, i) => images[page * perPage + i]?.preview ?? null),
+        [images, perPage, page]
     );
 
-    const visiblePages = [0, 1, 2, 3]
-        .map(i => offset + i)
-        .filter(p => p < totalPages);
-
-    // Calcola la larghezza di ogni canvas in base allo spazio disponibile
-    // Sottrae i gap tra le pagine, poi divide per il numero di pagine visibili
-    const numVisible = Math.max(1, visiblePages.length);
-    const pageCanvasW = containerW > 0
-        ? Math.floor((containerW - GAP_PX * (numVisible - 1)) / numVisible)
-        : 200; // fallback prima che ResizeObserver risponda
-
-    const canNavPrev = offset > 0;
-    const canNavNext = offset + 4 < totalPages;
+    const canPrev = page > 0;
+    const canNext = page < totalPages - 1;
 
     return (
-        <div className="preview-panel" ref={panelRef}>
-            <div className="preview-section-header">
-                <span className="preview-section-label">Anteprima</span>
+        <div className={`preview-root${isDragActive ? ' drag-active' : ''}`}>
+            <div className="preview-stage" ref={stageRef}>
+                <div className="preview-page-wrap" style={{ width: pageW }}>
+                    <PageCanvas
+                        pageImages={pageImages}
+                        formatKey={formatKey}
+                        bleedMm={bleedMm}
+                        previewW={pageW}
+                        empty={images.length === 0}
+                    />
+                    {images.length > 0 && (
+                        <div className="preview-card-layer">
+                            {Array.from({ length: info.perPage }, (_, i) => {
+                                const img = images[page * perPage + i];
+                                if (!img) return null;
+                                const col = i % info.cols;
+                                const row = Math.floor(i / info.cols);
+                                const left = (info.offsetX + col * info.cellW + bleedMm) * scale;
+                                const top = (info.offsetY + row * info.cellH + bleedMm) * scale;
+                                return (
+                                    <div
+                                        key={img.id}
+                                        className="preview-card-hotspot"
+                                        style={{
+                                            left,
+                                            top,
+                                            width: CARD_W * scale,
+                                            height: CARD_H * scale,
+                                        }}
+                                    >
+                                        <button
+                                            type="button"
+                                            className="preview-card-delete"
+                                            onClick={() => onRemove(img.id)}
+                                            title="Rimuovi"
+                                            aria-label={`Rimuovi ${img.file.name}`}
+                                        >
+                                            <IconX size={12} />
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <div className="preview-footer">
                 {totalPages > 1 && (
                     <div className="preview-nav">
                         <button
                             className="nav-btn"
-                            disabled={!canNavPrev}
-                            onClick={() => setPageOffset(offset - 4)}
-                            aria-label="Pagine precedenti"
+                            disabled={!canPrev}
+                            onClick={() => setPageOffset(page - 1)}
+                            aria-label="Pagina precedente"
                         >‹</button>
-                        <span className="nav-info">
-                            {offset + 1}–{Math.min(offset + 4, totalPages)} / {totalPages}
-                        </span>
+                        <span className="nav-info">{page + 1}/{totalPages}</span>
                         <button
                             className="nav-btn"
-                            disabled={!canNavNext}
-                            onClick={() => setPageOffset(offset + 4)}
-                            aria-label="Pagine successive"
+                            disabled={!canNext}
+                            onClick={() => setPageOffset(page + 1)}
+                            aria-label="Pagina successiva"
                         >›</button>
                     </div>
                 )}
-            </div>
-            <div className="preview-pages-row" style={{ gap: GAP_PX }}>
-                {visiblePages.map(pageIdx => (
-                    <div key={pageIdx} className="preview-page-wrap">
-                        <PageCanvas
-                            pageImages={pageImagesList[pageIdx]}
-                            formatKey={formatKey}
-                            bleedMm={bleedMm}
-                            previewW={pageCanvasW}
-                            empty={images.length === 0}
-                        />
-                        {images.length > 0 && (
-                            <span className="page-label">Pag. {pageIdx + 1}</span>
-                        )}
-                    </div>
-                ))}
+                {images.length > 0 && (
+                    <span className="preview-count">
+                        {images.length} img{missing > 0 ? ` · ${missing} mancanti` : ''}
+                    </span>
+                )}
+                <button
+                    type="button"
+                    className="add-photos-btn"
+                    onClick={onAddPhotos}
+                    title="Aggiungi foto"
+                    aria-label="Aggiungi foto"
+                >
+                    <IconPlus size={26} />
+                </button>
             </div>
         </div>
     );
