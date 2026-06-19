@@ -25,16 +25,26 @@ export default function App() {
     imagesRef.current.forEach(i => URL.revokeObjectURL(i.preview));
   }, []);
 
-  const handleImagesAdded = useCallback((files, { bleedFill = false } = {}) => {
-    const newItems = files.map(file => ({
+  // Crea gli item immagine. entries: [{file, bleedMode}].
+  const addItems = useCallback((entries) => {
+    const newItems = entries.map(({ file, bleedMode }) => ({
       file,
       preview: URL.createObjectURL(file),
       id: `${file.name}-${Date.now()}-${Math.random()}`,
-      bleedFill, // true per import Scryfall: genera l'abbondanza in fase di disegno
+      bleedMode: bleedMode || 'none', // 'stretch'/'mirror' per Scryfall, 'none' per upload
     }));
     setImages(prev => [...prev, ...newItems]);
     setError(null);
   }, []);
+
+  // Upload manuali (drag&drop / file picker): nessuna abbondanza generata.
+  const handleImagesAdded = useCallback(
+    (files) => addItems(files.map(file => ({ file, bleedMode: 'none' }))),
+    [addItems],
+  );
+
+  // Import Scryfall: items già [{file, bleedMode}] con la modalità per carta.
+  const handleScryfallImport = useCallback((items) => addItems(items), [addItems]);
 
   const handleRemove = useCallback((id) => {
     setImages(prev => {
@@ -53,7 +63,7 @@ export default function App() {
     setError(null);
     setLoading(true);
     try {
-      await generatePDF(images.map(i => ({ file: i.file, bleedFill: i.bleedFill })), formatKey, bleedMm, dpi);
+      await generatePDF(images.map(i => ({ file: i.file, bleedMode: i.bleedMode })), formatKey, bleedMm, dpi);
     } catch (err) {
       setError(err.message || 'Errore durante la generazione del PDF.');
     } finally {
@@ -138,7 +148,7 @@ export default function App() {
       <ScryfallImportModal
         open={importOpen}
         onClose={() => setImportOpen(false)}
-        onImport={(files) => handleImagesAdded(files, { bleedFill: true })}
+        onImport={handleScryfallImport}
       />
     </div>
   );

@@ -108,8 +108,9 @@ export function PageCanvas({ pageImages, formatKey, bleedMm, previewW, empty }) 
                 const h = cellH * scale;
 
                 if (!empty && imgs[i]) {
-                    if (pageImages[i]?.bleedFill) {
-                        drawCardWithBleed(ctx, imgs[i], x, y, w, h, bleedPx);
+                    const mode = pageImages[i]?.bleedMode;
+                    if (mode && mode !== 'none') {
+                        drawCardWithBleed(ctx, imgs[i], x, y, w, h, bleedPx, mode);
                     } else {
                         ctx.drawImage(imgs[i], x, y, w, h);
                     }
@@ -212,7 +213,7 @@ export default function PagePreview({ images, formatKey, bleedMm, onRemove, onAd
     const pageImages = useMemo(
         () => Array.from({ length: perPage }, (_, i) => {
             const it = images[page * perPage + i];
-            return it ? { src: it.preview, bleedFill: it.bleedFill } : null;
+            return it ? { src: it.preview, bleedMode: it.bleedMode } : null;
         }),
         [images, perPage, page]
     );

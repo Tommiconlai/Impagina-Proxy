@@ -83,7 +83,7 @@ async function mapLimit(items, limit, fn) {
  * Scarica le immagini delle carte richieste.
  * @param {{qty:number, name:string}[]} entries
  * @param {(done:number, total:number)=>void} [onProgress]
- * @returns {Promise<{files: File[], notFound: string[]}>}
+ * @returns {Promise<{files: {file: File, bleedMode: string}[], notFound: string[]}>}
  */
 export async function fetchScryfallImages(entries, onProgress) {
   // Aggrega le quantità per nome, preservando l'ordine di inserimento.
@@ -120,12 +120,14 @@ export async function fetchScryfallImages(entries, onProgress) {
   }
 
   // 2) Costruisci i task immagine nell'ordine della lista.
-  const tasks = []; // { url, name, qty }
+  const tasks = []; // { url, name, qty, bleedMode }
   for (const entry of list) {
     const card = cardByKey.get(entry.name.toLowerCase());
     if (!card) continue; // già in notFound
+    // full-art / borderless → mirror; altrimenti edge-stretch (bordo nero)
+    const bleedMode = card.full_art || card.border_color === 'borderless' ? 'mirror' : 'stretch';
     for (const face of imageFaces(card)) {
-      tasks.push({ url: face.url, name: face.name, qty: entry.qty });
+      tasks.push({ url: face.url, name: face.name, qty: entry.qty, bleedMode });
     }
   }
 
@@ -152,7 +154,10 @@ export async function fetchScryfallImages(entries, onProgress) {
       return;
     }
     for (let k = 0; k < t.qty; k++) {
-      files.push(new File([blob], `${sanitizeName(t.name)}.png`, { type: 'image/png' }));
+      files.push({
+        file: new File([blob], `${sanitizeName(t.name)}.png`, { type: 'image/png' }),
+        bleedMode: t.bleedMode,
+      });
     }
   });
 

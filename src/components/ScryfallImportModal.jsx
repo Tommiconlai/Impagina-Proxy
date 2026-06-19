@@ -51,7 +51,7 @@ export default function ScryfallImportModal({ open, onClose, onImport }) {
                 <textarea
                     className="import-textarea"
                     value={text}
-                    onChange={(e) => setText(e.target.value)}
+                    onChange={(e) => { setText(e.target.value); if (result) setResult(null); }}
                     placeholder={'1x Sol Ring\n2x Brainstorm\n1x Fable of the Mirror-Breaker'}
                     rows={10}
                     disabled={busy}
@@ -81,9 +81,15 @@ export default function ScryfallImportModal({ open, onClose, onImport }) {
                 )}
 
                 <div className="modal-actions">
-                    <button className="btn-secondary" onClick={close} disabled={busy}>Chiudi</button>
-                    <button className="btn-generate import-btn" onClick={handleImport} disabled={busy || !text.trim()}>
-                        {busy ? <><span className="spinner" /> Import…</> : 'Importa'}
+                    {!result && (
+                        <button className="btn-secondary" onClick={close} disabled={busy}>Chiudi</button>
+                    )}
+                    <button
+                        className="btn-generate import-btn"
+                        onClick={busy ? undefined : (result ? onClose : handleImport)}
+                        disabled={busy || (!result && !text.trim())}
+                    >
+                        {busy ? <><span className="spinner" /> Import…</> : result ? 'Finito' : 'Importa'}
                     </button>
                 </div>
             </div>

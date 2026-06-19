@@ -125,14 +125,26 @@ function drawCropMarks(doc, x, y, bleed, limits) {
 
 const MM_TO_PX = (dpi) => dpi / 25.4;
 
+// drawImage con flip opzionale orizzontale/verticale (per il mirror del bleed).
+function blit(ctx, img, sx, sy, sw, sh, dx, dy, dw, dh, flipX, flipY) {
+  ctx.save();
+  ctx.translate(flipX ? dx + dw : dx, flipY ? dy + dh : dy);
+  ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, dw, dh);
+  ctx.restore();
+}
+
 /**
  * Disegna `img` come carta a misura di taglio (1:1) nell'area centrale della
- * cella e genera l'abbondanza (bleed) attorno con edge-stretch: la riga/colonna
- * di pixel più esterna viene stirata verso il bordo cella, gli angoli replicati.
- * Ricrea i bordi mancanti per il taglio al vivo di immagini senza abbondanza
- * (es. Scryfall). bleedPx = 0 → la carta riempie tutta la cella.
+ * cella e genera l'abbondanza (bleed) attorno. Ricrea i bordi mancanti per il
+ * taglio al vivo di immagini senza abbondanza (es. Scryfall).
+ * - mode 'stretch' (default): riga/colonna esterna stirata, angoli replicati.
+ *   Ideale per carte bordo nero.
+ * - mode 'mirror': specchia verso l'esterno la fascia esterna della carta.
+ *   Più naturale sulle full-art.
+ * bleedPx = 0 → la carta riempie tutta la cella.
  */
-export function drawCardWithBleed(ctx, img, x, y, cellW, cellH, bleedPx) {
+export function drawCardWithBleed(ctx, img, x, y, cellW, cellH, bleedPx, mode = 'stretch') {
   const b = Math.max(0, bleedPx);
   const tx = x + b;
   const ty = y + b;
@@ -146,7 +158,24 @@ export function drawCardWithBleed(ctx, img, x, y, cellW, cellH, bleedPx) {
   ctx.drawImage(img, 0, 0, iw, ih, tx, ty, tw, th);
   if (b <= 0) return;
 
-  // Bordi: riga/colonna esterna stirata nell'abbondanza
+  if (mode === 'mirror') {
+    // Larghezza/altezza (in px sorgente) della fascia da specchiare
+    const bsw = Math.max(1, Math.min(iw, Math.round((b * iw) / tw)));
+    const bsh = Math.max(1, Math.min(ih, Math.round((b * ih) / th)));
+    // Bordi
+    blit(ctx, img, 0, 0, iw, bsh, tx, ty - b, tw, b, false, true);          // alto
+    blit(ctx, img, 0, ih - bsh, iw, bsh, tx, ty + th, tw, b, false, true);  // basso
+    blit(ctx, img, 0, 0, bsw, ih, tx - b, ty, b, th, true, false);          // sinistra
+    blit(ctx, img, iw - bsw, 0, bsw, ih, tx + tw, ty, b, th, true, false);  // destra
+    // Angoli
+    blit(ctx, img, 0, 0, bsw, bsh, tx - b, ty - b, b, b, true, true);                  // alto-sx
+    blit(ctx, img, iw - bsw, 0, bsw, bsh, tx + tw, ty - b, b, b, true, true);          // alto-dx
+    blit(ctx, img, 0, ih - bsh, bsw, bsh, tx - b, ty + th, b, b, true, true);          // basso-sx
+    blit(ctx, img, iw - bsw, ih - bsh, bsw, bsh, tx + tw, ty + th, b, b, true, true);  // basso-dx
+    return;
+  }
+
+  // edge-stretch: riga/colonna esterna stirata nell'abbondanza
   ctx.drawImage(img, 0, 0, iw, 1, tx, ty - b, tw, b);          // alto
   ctx.drawImage(img, 0, ih - 1, iw, 1, tx, ty + th, tw, b);    // basso
   ctx.drawImage(img, 0, 0, 1, ih, tx - b, ty, b, th);          // sinistra
@@ -177,7 +206,7 @@ function loadImageElement(file) {
  * (riduzione tipica 5–10×). Con `bleedFill` la carta è disegnata a misura di
  * taglio e l'abbondanza è generata con edge-stretch; altrimenti object-fit cover.
  */
-function compressImage(img, cellWmm, cellHmm, dpi, bleedMm, bleedFill, quality = 0.85) {
+function compressImage(img, cellWmm, cellHmm, dpi, bleedMm, bleedMode, quality = 0.85) {
   const mmToPx = MM_TO_PX(dpi);
   const w = Math.round(cellWmm * mmToPx);
   const h = Math.round(cellHmm * mmToPx);
@@ -188,8 +217,8 @@ function compressImage(img, cellWmm, cellHmm, dpi, bleedMm, bleedFill, quality =
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, w, h);
 
-  if (bleedFill) {
-    drawCardWithBleed(ctx, img, 0, 0, w, h, Math.round(bleedMm * mmToPx));
+  if (bleedMode && bleedMode !== 'none') {
+    drawCardWithBleed(ctx, img, 0, 0, w, h, Math.round(bleedMm * mmToPx), bleedMode);
   } else {
     // object-fit: cover (immagini caricate a mano)
     const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
@@ -241,7 +270,7 @@ export async function generatePDF(items, formatKey, bleedMm, dpi = 600) {
       // Carica, ridimensiona e comprimi prima di passare a jsPDF
       const item = items[imgIndex];
       const imgEl = await loadImageElement(item.file);
-      const jpeg = compressImage(imgEl, cellW, cellH, dpi, bleedMm, item.bleedFill);
+      const jpeg = compressImage(imgEl, cellW, cellH, dpi, bleedMm, item.bleedMode);
       doc.addImage(jpeg, 'JPEG', x, y, cellW, cellH);
       const limits = {
         left:  (col === 0 ? offsetX : 0) + bleedMm,

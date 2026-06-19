@@ -36,11 +36,11 @@ before restarting.
 
 | File | Role |
 |------|------|
-| `src/App.jsx` | Root: state (images, format, bleed, dpi, import modal), header/sidebar/main layout, `react-dropzone` (full-area drag&drop + `open()`); image items carry a `bleedFill` flag (Scryfall imports) |
+| `src/App.jsx` | Root: state (images, format, bleed, dpi, import modal), header/sidebar/main layout, `react-dropzone` (full-area drag&drop + `open()`); image items carry a `bleedMode` (`none`/`stretch`/`mirror`) |
 | `src/components/PageSettings.jsx` | Sidebar: format/bleed/dpi selects + layout info box (griglia / immagini per pagina / dimensioni) |
 | `src/components/PagePreview.jsx` | Preview: one large centered page (`PageCanvas`) + per-card hover-delete overlay; footer with pager + count + green "+" menu (carica file / importa Scryfall) |
 | `src/components/ScryfallImportModal.jsx` | Modal: paste a card list → fetch from Scryfall → add to images (uses `utils/scryfall.js`) |
-| `src/utils/pdfGenerator.js` | Grid math (`getGridInfo`, constants) + `generatePDF` (jspdf, dynamically imported) + `drawCardWithBleed` (edge-stretch bleed) + `cropMarkSpan` (clamped crop marks) |
+| `src/utils/pdfGenerator.js` | Grid math (`getGridInfo`, constants) + `generatePDF` (jspdf, dynamically imported) + `drawCardWithBleed` (stretch/mirror bleed) + `cropMarkSpan` (clamped crop marks) |
 | `src/utils/scryfall.js` | `parseCardList` (text → {qty,name}) + `fetchScryfallImages` (`/cards/collection` batched, downloads PNGs as `File`; DFC → both faces) |
 | `src/components/icons.jsx` | Custom lucide-style SVG icon set (currentColor), incl. `IconPlus`, `IconDownload` |
 | `src/index.css` | All styling + design tokens |
@@ -69,9 +69,13 @@ Tokens at the top of `src/index.css`. Also recorded in this project's Claude mem
 ## Done recently
 
 - **Bleed generation for Scryfall imports:** Scryfall cards arrive at trim size (no bleed).
-  Items now carry a `bleedFill` flag (true for Scryfall, false for manual uploads).
-  `pdfGenerator.drawCardWithBleed` draws the card 1:1 in the trim area and fills the bleed
-  margin by edge-stretching the outermost pixels (corners replicated) — shared by the canvas
+  Items carry a `bleedMode` (`'stretch'` | `'mirror'` for Scryfall, `'none'` for manual
+  uploads). `pdfGenerator.drawCardWithBleed` draws the card 1:1 in the trim area and fills
+  the bleed margin: `stretch` extends the outermost row/column (corners replicated, ideal
+  for black-bordered cards), `mirror` reflects the outer band (better for full-art). The
+  Scryfall import auto-picks `mirror` when the resolved card is `full_art` / `border_color:
+  borderless`, else `stretch` (note: `/cards/collection` returns the default printing, so
+  mirror only fires when that printing is itself full-art/borderless). Shared by the canvas
   preview and `compressImage`/PDF, follows the bleed slider (`bleed=0` → card fills the
   cell). Manual uploads keep object-fit cover. (mpc-autofill itself is desktop MPC-order
   automation, not embeddable; this replicates the print-ready bleed in-browser.)
@@ -80,7 +84,8 @@ Tokens at the top of `src/index.css`. Also recorded in this project's Claude mem
   paste a `1x Card Name` list; `utils/scryfall.js` resolves names via `/cards/collection`
   (batched 75), downloads the PNGs as `File`s, and feeds them through the normal pipeline.
   Double-faced cards import both faces; missing names are listed. Images arrive as blob
-  object URLs (same-origin) so the canvas/PDF export is not tainted. Verified live.
+  object URLs (same-origin) so the canvas/PDF export is not tainted. After a successful
+  import the modal's "Importa" button becomes "Finito" (closes). Verified live.
 - **Preview image cache:** `PageCanvas` keeps a `src → HTMLImageElement` cache so redraws
   (delete, resize, format change) no longer re-decode every image — deleting a card is now
   0 re-decodes (was N) and the preview no longer "reloads from scratch"/flashes. Cache is
