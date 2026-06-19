@@ -66,6 +66,12 @@ Tokens at the top of `src/index.css`. Also recorded in this project's Claude mem
 
 ## Done recently
 
+- **Crop-mark fix:** crop marks no longer overflow into adjacent cards at small bleed.
+  New pure `cropMarkSpan(limit, gap, len)` in `pdfGenerator.js` clamps each mark's outward
+  reach to the available space — inner edges to `bleed` (the midline between ganged cards),
+  outer edges to `bleed + offset` (page margin, also prevents off-page marks); `bleed = 0`
+  → no inner marks. Shared by the PDF (`drawCropMarks`) and the canvas preview
+  (`drawCropMarksCanvas`).
 - **Interactive preview redesign:** one large centered page (replaces the 4-up small
   grid), pagination moved to a bottom-center `‹ n/N ›` pager (step 1), green **+**
   add-photos button + full-area drag&drop. Per-card delete: hover a card → red border +

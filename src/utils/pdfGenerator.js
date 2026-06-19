@@ -64,9 +64,29 @@ export function getGridInfo(formatKey, bleedMm) {
 }
 
 /**
- * Disegna le linee di taglio (crop marks) per un'immagine nel PDF.
+ * Estensione (distanze [a, b] dal bordo trim) di un crocino che punta verso
+ * l'esterno, limitata a `limit` perché non superi la mezzeria tra due carte
+ * adiacenti (limit = bleed) o il bordo pagina (limit = bleed + offset).
+ *
+ * Risolve l'ambiguità con bleed piccolo: con lunghezza fissa il crocino di una
+ * carta sconfinava oltre la mezzeria invadendo la carta vicina.
+ *
+ * @returns {{a:number,b:number}|null} null se non c'è spazio (es. bleed = 0 sui lati interni)
  */
-function drawCropMarks(doc, x, y, bleed) {
+export function cropMarkSpan(limit, gap, len) {
+  if (limit <= 0) return null;
+  if (gap + len <= limit) return { a: gap, b: gap + len }; // spazio pieno: crocino intero
+  if (limit <= gap) return { a: 0, b: limit };             // spazio < gap: crocino corto dal bordo
+  return { a: gap, b: limit };                              // accorcia il crocino fino alla mezzeria
+}
+
+/**
+ * Disegna le linee di taglio (crop marks) per un'immagine nel PDF.
+ * `limits` = estensione massima verso l'esterno per lato (left/right/up/down):
+ * `bleed` sui bordi interni (mezzeria con la carta vicina), `bleed + offset`
+ * sui bordi esterni (margine pagina).
+ */
+function drawCropMarks(doc, x, y, bleed, limits) {
   const markLength = 3;
   const gap = 0.5;
 
@@ -78,18 +98,29 @@ function drawCropMarks(doc, x, y, bleed) {
   doc.setDrawColor(160, 160, 160);
   doc.setLineWidth(0.15);
 
-  // Top-left
-  doc.line(cx - gap - markLength, cy, cx - gap, cy);
-  doc.line(cx, cy - gap - markLength, cx, cy - gap);
-  // Top-right
-  doc.line(cx + cw + gap, cy, cx + cw + gap + markLength, cy);
-  doc.line(cx + cw, cy - gap - markLength, cx + cw, cy - gap);
-  // Bottom-left
-  doc.line(cx - gap - markLength, cy + ch, cx - gap, cy + ch);
-  doc.line(cx, cy + ch + gap, cx, cy + ch + gap + markLength);
-  // Bottom-right
-  doc.line(cx + cw + gap, cy + ch, cx + cw + gap + markLength, cy + ch);
-  doc.line(cx + cw, cy + ch + gap, cx + cw, cy + ch + gap + markLength);
+  const L = cropMarkSpan(limits.left, gap, markLength);
+  const R = cropMarkSpan(limits.right, gap, markLength);
+  const U = cropMarkSpan(limits.up, gap, markLength);
+  const D = cropMarkSpan(limits.down, gap, markLength);
+
+  // Orizzontali (escono dai bordi verticali del trim, verso sinistra/destra)
+  if (L) {
+    doc.line(cx - L.b, cy, cx - L.a, cy);
+    doc.line(cx - L.b, cy + ch, cx - L.a, cy + ch);
+  }
+  if (R) {
+    doc.line(cx + cw + R.a, cy, cx + cw + R.b, cy);
+    doc.line(cx + cw + R.a, cy + ch, cx + cw + R.b, cy + ch);
+  }
+  // Verticali (escono dai bordi orizzontali del trim, verso alto/basso)
+  if (U) {
+    doc.line(cx, cy - U.b, cx, cy - U.a);
+    doc.line(cx + cw, cy - U.b, cx + cw, cy - U.a);
+  }
+  if (D) {
+    doc.line(cx, cy + ch + D.a, cx, cy + ch + D.b);
+    doc.line(cx + cw, cy + ch + D.a, cx + cw, cy + ch + D.b);
+  }
 }
 
 const MM_TO_PX = (dpi) => dpi / 25.4;
@@ -174,7 +205,13 @@ export async function generatePDF(files, formatKey, bleedMm, dpi = 600) {
       const imgEl = await loadImageElement(files[imgIndex]);
       const jpeg = compressImage(imgEl, cellW, cellH, dpi);
       doc.addImage(jpeg, 'JPEG', x, y, cellW, cellH);
-      drawCropMarks(doc, x, y, bleedMm);
+      const limits = {
+        left:  (col === 0 ? offsetX : 0) + bleedMm,
+        right: (col === cols - 1 ? offsetX : 0) + bleedMm,
+        up:    (row === 0 ? offsetY : 0) + bleedMm,
+        down:  (row === rows - 1 ? offsetY : 0) + bleedMm,
+      };
+      drawCropMarks(doc, x, y, bleedMm, limits);
 
       posOnPage++;
       imgIndex++;

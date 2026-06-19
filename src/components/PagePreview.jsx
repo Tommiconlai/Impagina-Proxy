@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useMemo } from 'react';
-import { getGridInfo, CARD_W, CARD_H } from '../utils/pdfGenerator';
+import { getGridInfo, CARD_W, CARD_H, cropMarkSpan } from '../utils/pdfGenerator';
 import { IconX, IconPlus } from './icons';
 
 // ── Carica un'immagine come HTMLImageElement (async) ─────────
@@ -14,9 +14,9 @@ function loadImage(src) {
 }
 
 // ── Linee di taglio su canvas ────────────────────────────────
-function drawCropMarksCanvas(ctx, cellX, cellY, bleedPx, cardWpx, cardHpx, scale) {
-    const gap = Math.max(1, 0.5 * scale);
-    const len = Math.max(3, 3 * scale);
+function drawCropMarksCanvas(ctx, cellX, cellY, bleedPx, cardWpx, cardHpx, scale, limits) {
+    const gap = 0.5 * scale;
+    const len = 3 * scale;
 
     const cx = cellX + bleedPx;
     const cy = cellY + bleedPx;
@@ -24,27 +24,36 @@ function drawCropMarksCanvas(ctx, cellX, cellY, bleedPx, cardWpx, cardHpx, scale
     ctx.strokeStyle = '#aaa';
     ctx.lineWidth = Math.max(0.5, 0.3 * scale);
 
-    const lines = [
-        // Top-left
-        [cx - gap - len, cy, cx - gap, cy],
-        [cx, cy - gap - len, cx, cy - gap],
-        // Top-right
-        [cx + cardWpx + gap, cy, cx + cardWpx + gap + len, cy],
-        [cx + cardWpx, cy - gap - len, cx + cardWpx, cy - gap],
-        // Bottom-left
-        [cx - gap - len, cy + cardHpx, cx - gap, cy + cardHpx],
-        [cx, cy + cardHpx + gap, cx, cy + cardHpx + gap + len],
-        // Bottom-right
-        [cx + cardWpx + gap, cy + cardHpx, cx + cardWpx + gap + len, cy + cardHpx],
-        [cx + cardWpx, cy + cardHpx + gap, cx + cardWpx, cy + cardHpx + gap + len],
-    ];
-
-    lines.forEach(([x1, y1, x2, y2]) => {
+    const seg = (x1, y1, x2, y2) => {
         ctx.beginPath();
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
         ctx.stroke();
-    });
+    };
+
+    const L = cropMarkSpan(limits.left, gap, len);
+    const R = cropMarkSpan(limits.right, gap, len);
+    const U = cropMarkSpan(limits.up, gap, len);
+    const D = cropMarkSpan(limits.down, gap, len);
+
+    // Orizzontali (sinistra/destra dai bordi verticali del trim)
+    if (L) {
+        seg(cx - L.b, cy, cx - L.a, cy);
+        seg(cx - L.b, cy + cardHpx, cx - L.a, cy + cardHpx);
+    }
+    if (R) {
+        seg(cx + cardWpx + R.a, cy, cx + cardWpx + R.b, cy);
+        seg(cx + cardWpx + R.a, cy + cardHpx, cx + cardWpx + R.b, cy + cardHpx);
+    }
+    // Verticali (alto/basso dai bordi orizzontali del trim)
+    if (U) {
+        seg(cx, cy - U.b, cx, cy - U.a);
+        seg(cx + cardWpx, cy - U.b, cx + cardWpx, cy - U.a);
+    }
+    if (D) {
+        seg(cx, cy + cardHpx + D.a, cx, cy + cardHpx + D.b);
+        seg(cx + cardWpx, cy + cardHpx + D.a, cx + cardWpx, cy + cardHpx + D.b);
+    }
 }
 
 // ── Singola pagina canvas ─────────────────────────────────────
@@ -98,7 +107,13 @@ export function PageCanvas({ pageImages, formatKey, bleedMm, previewW, empty }) 
                     }
                 }
 
-                drawCropMarksCanvas(ctx, x, y, bleedPx, cardWpx, cardHpx, scale);
+                const limits = {
+                    left:  (col === 0 ? offsetX * scale : 0) + bleedPx,
+                    right: (col === cols - 1 ? offsetX * scale : 0) + bleedPx,
+                    up:    (row === 0 ? offsetY * scale : 0) + bleedPx,
+                    down:  (row === rows - 1 ? offsetY * scale : 0) + bleedPx,
+                };
+                drawCropMarksCanvas(ctx, x, y, bleedPx, cardWpx, cardHpx, scale, limits);
             }
 
             ctx.strokeStyle = '#c8c8c8';
