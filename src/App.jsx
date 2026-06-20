@@ -25,11 +25,15 @@ export default function App() {
   const [bleedMm, setBleedMm] = useState(() => readNum('ip:bleed', 2));
   const [bleedStyle, setBleedStyle] = useState(() => localStorage.getItem('ip:bleedStyle') || 'auto'); // auto | mirror | stretch | black
   const [dpi, setDpi] = useState(() => readNum('ip:dpi', 600));
+  const [cardType, setCardType] = useState(() => localStorage.getItem('ip:cardType') || 'mtg');
+  const [cardW, setCardW] = useState(() => readNum('ip:cardW', 63) || 63);
+  const [cardH, setCardH] = useState(() => readNum('ip:cardH', 88) || 88);
+  const [cropMarks, setCropMarks] = useState(() => localStorage.getItem('ip:cropMarks') !== '0'); // default on
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
   const [editingId, setEditingId] = useState(null); // carta di cui cambiare l'art
-  const { perPage } = getGridInfo(formatKey, bleedMm);
+  const { perPage } = getGridInfo(formatKey, bleedMm, cardW, cardH);
   const editing = editingId ? images.find(i => i.id === editingId) : null;
 
   // Persiste i settaggi (non le immagini: sono blob, si re-importano in 1 click).
@@ -38,7 +42,11 @@ export default function App() {
     localStorage.setItem('ip:bleed', String(bleedMm));
     localStorage.setItem('ip:bleedStyle', bleedStyle);
     localStorage.setItem('ip:dpi', String(dpi));
-  }, [formatKey, bleedMm, bleedStyle, dpi]);
+    localStorage.setItem('ip:cardType', cardType);
+    localStorage.setItem('ip:cardW', String(cardW));
+    localStorage.setItem('ip:cardH', String(cardH));
+    localStorage.setItem('ip:cropMarks', cropMarks ? '1' : '0');
+  }, [formatKey, bleedMm, bleedStyle, dpi, cardType, cardW, cardH, cropMarks]);
 
   // Revoca gli object URL residui allo smontaggio (evita leak di memoria).
   // imagesRef tiene il riferimento aggiornato senza ri-registrare l'effect.
@@ -107,7 +115,7 @@ export default function App() {
     setError(null);
     setLoading(true);
     try {
-      await generatePDF(images, formatKey, bleedMm, dpi, bleedStyle);
+      await generatePDF(images, formatKey, bleedMm, dpi, bleedStyle, cardW, cardH, cropMarks);
     } catch (err) {
       setError(err.message || 'Errore durante la generazione del PDF.');
     } finally {
@@ -148,6 +156,14 @@ export default function App() {
             setBleedStyle={setBleedStyle}
             dpi={dpi}
             setDpi={setDpi}
+            cardType={cardType}
+            setCardType={setCardType}
+            cardW={cardW}
+            setCardW={setCardW}
+            cardH={cardH}
+            setCardH={setCardH}
+            cropMarks={cropMarks}
+            setCropMarks={setCropMarks}
           />
           <div className="sidebar-section">
             <h2>Esporta</h2>
@@ -184,6 +200,9 @@ export default function App() {
             bleedMm={bleedMm}
             bleedStyle={bleedStyle}
             dpi={dpi}
+            cardW={cardW}
+            cardH={cardH}
+            showCrop={cropMarks}
             onRemove={handleRemove}
             onChangeArt={setEditingId}
             onToggleBleed={handleToggleBleed}

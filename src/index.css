@@ -250,6 +250,32 @@ input[type="number"]:focus {
   font-size: 0.75rem;
 }
 
+/* Input dimensioni carta personalizzate: due colonne "L [..] mm  A [..] mm". */
+.card-size-custom {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.card-size-custom label {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.card-size-custom input[type="number"] {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  padding: 7px 8px;
+  text-align: center;
+  cursor: text;
+}
+
 /* ============================================================
    SLIDER
    ============================================================ */

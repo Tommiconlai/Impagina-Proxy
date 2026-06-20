@@ -36,12 +36,12 @@ before restarting.
 
 | File | Role |
 |------|------|
-| `src/App.jsx` | Root: state (images, format, bleed, bleedStyle, dpi, import + art-picker modals), header/sidebar/main layout, `react-dropzone` (full-area drag&drop + `open()`). Settings persisted to `localStorage` (`ip:format`/`ip:bleed`/`ip:bleedStyle`/`ip:dpi`). Image items carry a `bleedMode` (`none`/`stretch`/`mirror`). Handlers: add / remove / clearAll / toggleBleed (none↔stretch) / duplicate / replaceArt |
-| `src/components/PageSettings.jsx` | Sidebar: format / bleed / **bleed-style** (auto/mirror/stretch/black) / dpi selects + layout info box (griglia / immagini per pagina / dimensioni) |
+| `src/App.jsx` | Root: state (images, format, bleed, bleedStyle, dpi, cardType/cardW/cardH, cropMarks, import + art-picker modals), header/sidebar/main layout, `react-dropzone` (full-area drag&drop + `open()`). Settings persisted to `localStorage` (`ip:format`/`ip:bleed`/`ip:bleedStyle`/`ip:dpi`/`ip:cardType`/`ip:cardW`/`ip:cardH`/`ip:cropMarks`; `ip:cardlist` lives in the import modal). Image items carry a `bleedMode` (`none`/`stretch`/`mirror`). Handlers: add / remove / clearAll / toggleBleed (none↔stretch) / duplicate / replaceArt |
+| `src/components/PageSettings.jsx` | Sidebar: format / **card type** (presets + custom W×H) / bleed / **bleed-style** (auto/mirror/stretch/black) / dpi / **crop-marks** (show-hide) selects + layout info box (Foglio / Carta / Cella / griglia / immagini per pagina) |
 | `src/components/PagePreview.jsx` | Preview: one large centered page (`PageCanvas`) + per-card hover overlay (click = change art; buttons: duplicate, bleed on/off, delete). `PageCanvas` draws cards + bleed + crop marks + a **low-res warning** triangle (source < ½ the px the chosen DPI needs). Footer: pager + count + green "+" menu (carica file / importa Scryfall) |
 | `src/components/ScryfallImportModal.jsx` | Modal: paste a card list → fetch from Scryfall → add to images. Pasted text persisted to `localStorage` (`ip:cardlist`). Accepts `(SET) collector` to pin a printing |
 | `src/components/ArtPickerModal.jsx` | Click a placed card → lists all Scryfall printings (`fetchPrints`, `/cards/search?unique=prints`) → pick one → `downloadAsFile` swaps `file`+`preview` (id/bleedMode kept). Card name is derived from the **filename** (DFC / special chars → no prints) |
-| `src/utils/pdfGenerator.js` | Grid math (`getGridInfo`, constants) + `generatePDF` (jspdf, dynamically imported) + `drawCardWithBleed` (stretch/mirror/black bleed) + `resolveBleedMode` (per-card mode × global style) + `cropMarkSpan` (clamped crop marks) |
+| `src/utils/pdfGenerator.js` | Grid math (`getGridInfo(formatKey, bleedMm, cardW=63, cardH=88)`, `CARD_W`/`CARD_H` are defaults) + `generatePDF(items, formatKey, bleedMm, dpi, bleedStyle, cardW, cardH, cropMarks)` (jspdf, dynamically imported) + `drawCardWithBleed` (stretch/mirror/black bleed) + `resolveBleedMode` (per-card mode × global style) + `cropMarkSpan` (clamped crop marks) |
 | `src/utils/scryfall.js` | `parseCardList` (text → `{qty,name,set,collector}`) + `fetchScryfallImages` (`/cards/collection` batched, printing-pinned via name\|set\|collector keys, downloads PNGs as `File`; DFC → both faces) + `fetchPrints` + `downloadAsFile` |
 | `src/utils/scryfall.selfcheck.js` | `node`-runnable assert check for `parseCardList` (no framework). Run: `node src/utils/scryfall.selfcheck.js` |
 | `src/components/icons.jsx` | Custom lucide-style SVG icon set (currentColor), incl. `IconPlus`, `IconDownload`, `IconCopy`, `IconFrame` |
@@ -70,7 +70,16 @@ Tokens at the top of `src/index.css`. Also recorded in this project's Claude mem
 
 ## Done recently
 
-- **Five usability features (most recent):**
+- **Card type + crop-mark toggle (most recent):**
+  - *Tipo carta:* sidebar preset select (Standard 63×88, Piccola/JP 59×86, Mini USA 41×63,
+    Tarot 70×120) + "Personalizzata" with free W×H inputs. `CARD_W`/`CARD_H` are now just
+    defaults — `getGridInfo(formatKey, bleedMm, cardW, cardH)` and `generatePDF(…, cardW, cardH, …)`
+    take real dims, threaded through `App` state (`cardType`/`cardW`/`cardH`, persisted) into
+    `PageSettings`, `PagePreview`/`PageCanvas`, crop marks, and the low-res check.
+  - *Crocini di taglio:* Mostra/Nascondi select gates crop marks in both the PDF
+    (`generatePDF` `cropMarks` arg) and the canvas preview (`PageCanvas` `showCrop`).
+  - Layout info box relabelled: Foglio (sheet) / Carta (card) / Cella (cell). Verified live.
+- **Five usability features:**
   - *Persistence:* settings (`formatKey`/`bleedMm`/`bleedStyle`/`dpi`) + the pasted
     Scryfall list survive reload via `localStorage`. Images (blobs) are not persisted —
     re-import is one click. Corrupt `ip:format` falls back to A3 (guards a crash in `getGridInfo`).

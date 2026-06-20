@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useMemo } from 'react';
-import { getGridInfo, CARD_W, CARD_H, cropMarkSpan, drawCardWithBleed, resolveBleedMode } from '../utils/pdfGenerator';
+import { getGridInfo, cropMarkSpan, drawCardWithBleed, resolveBleedMode } from '../utils/pdfGenerator';
 import { IconX, IconPlus, IconImage, IconDownload, IconCopy, IconFrame } from './icons';
 
 // ── Carica un'immagine come HTMLImageElement (async) ─────────
@@ -57,12 +57,12 @@ function drawCropMarksCanvas(ctx, cellX, cellY, bleedPx, cardWpx, cardHpx, scale
 }
 
 // ── Singola pagina canvas ─────────────────────────────────────
-export function PageCanvas({ pageImages, formatKey, bleedMm, bleedStyle, dpi, previewW, empty }) {
+export function PageCanvas({ pageImages, formatKey, bleedMm, bleedStyle, dpi, cardW, cardH, showCrop, previewW, empty }) {
     const canvasRef = useRef();
     // Cache src(objectURL) -> HTMLImageElement decodificata: evita di ri-decodificare
     // le immagini a ogni ridisegno (cancellazione carta, resize, cambio pagina/formato).
     const cacheRef = useRef(new Map());
-    const info = useMemo(() => getGridInfo(formatKey, bleedMm), [formatKey, bleedMm]);
+    const info = useMemo(() => getGridInfo(formatKey, bleedMm, cardW, cardH), [formatKey, bleedMm, cardW, cardH]);
     const scale = previewW / info.pageW;
     const previewH = Math.round(info.pageH * scale);
 
@@ -96,8 +96,8 @@ export function PageCanvas({ pageImages, formatKey, bleedMm, bleedStyle, dpi, pr
 
             const { cols, rows, cellW, cellH, offsetX, offsetY } = info;
             const bleedPx = bleedMm * scale;
-            const cardWpx = CARD_W * scale;
-            const cardHpx = CARD_H * scale;
+            const cardWpx = cardW * scale;
+            const cardHpx = cardH * scale;
 
             for (let i = 0; i < cols * rows; i++) {
                 const col = i % cols;
@@ -122,7 +122,7 @@ export function PageCanvas({ pageImages, formatKey, bleedMm, bleedStyle, dpi, pr
                     // richiesti al DPI scelto → stampa sgranata. ponytail: soglia
                     // 0.5× fissa; le PNG Scryfall (~300 DPI a misura carta) non avvisano
                     // fino a >600 DPI. Marker triangolo rosso nell'angolo del trim.
-                    const effDpi = imgs[i].naturalWidth / (CARD_W / 25.4);
+                    const effDpi = imgs[i].naturalWidth / (cardW / 25.4);
                     if (effDpi < dpi * 0.5) {
                         const s = Math.max(9, 15 * scale);
                         const mx = x + bleedPx;
@@ -157,7 +157,7 @@ export function PageCanvas({ pageImages, formatKey, bleedMm, bleedStyle, dpi, pr
                     up:    (row === 0 ? offsetY * scale : 0) + bleedPx,
                     down:  (row === rows - 1 ? offsetY * scale : 0) + bleedPx,
                 };
-                drawCropMarksCanvas(ctx, x, y, bleedPx, cardWpx, cardHpx, scale, limits);
+                if (showCrop) drawCropMarksCanvas(ctx, x, y, bleedPx, cardWpx, cardHpx, scale, limits);
             }
 
             ctx.strokeStyle = '#c8c8c8';
@@ -167,7 +167,7 @@ export function PageCanvas({ pageImages, formatKey, bleedMm, bleedStyle, dpi, pr
 
         draw();
         return () => { cancelled = true; };
-    }, [pageImages, formatKey, bleedMm, bleedStyle, dpi, previewW, empty, info, scale, previewH]);
+    }, [pageImages, formatKey, bleedMm, bleedStyle, dpi, cardW, cardH, showCrop, previewW, empty, info, scale, previewH]);
 
     return (
         <canvas
@@ -178,14 +178,14 @@ export function PageCanvas({ pageImages, formatKey, bleedMm, bleedStyle, dpi, pr
 }
 
 // ── Componente principale ─────────────────────────────────────
-export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, dpi, onRemove, onChangeArt, onToggleBleed, onDuplicate, onAddPhotos, onImportScryfall, isDragActive, missing }) {
+export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, dpi, cardW, cardH, showCrop, onRemove, onChangeArt, onToggleBleed, onDuplicate, onAddPhotos, onImportScryfall, isDragActive, missing }) {
     const [pageOffset, setPageOffset] = useState(0);
     const [box, setBox] = useState({ w: 0, h: 0 });
     const [menuOpen, setMenuOpen] = useState(false);
     const stageRef = useRef(null);
     const menuRef = useRef(null);
 
-    const info = useMemo(() => getGridInfo(formatKey, bleedMm), [formatKey, bleedMm]);
+    const info = useMemo(() => getGridInfo(formatKey, bleedMm, cardW, cardH), [formatKey, bleedMm, cardW, cardH]);
     const perPage = Math.max(1, info.perPage);
     const totalPages = images.length === 0 ? 1 : Math.ceil(images.length / perPage);
 
@@ -256,6 +256,9 @@ export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, dp
                         bleedMm={bleedMm}
                         bleedStyle={bleedStyle}
                         dpi={dpi}
+                        cardW={cardW}
+                        cardH={cardH}
+                        showCrop={showCrop}
                         previewW={pageW}
                         empty={images.length === 0}
                     />
@@ -275,8 +278,8 @@ export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, dp
                                         style={{
                                             left,
                                             top,
-                                            width: CARD_W * scale,
-                                            height: CARD_H * scale,
+                                            width: cardW * scale,
+                                            height: cardH * scale,
                                             cursor: 'pointer',
                                         }}
                                         onClick={() => onChangeArt(img.id)}

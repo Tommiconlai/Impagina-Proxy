@@ -20,9 +20,9 @@ export const PAPER_FORMATS = {
 /**
  * Calcola griglia per una combinazione larghezza/altezza pagina.
  */
-function calcGrid(pw, ph, bleedMm) {
-  const cellW = CARD_W + bleedMm * 2;
-  const cellH = CARD_H + bleedMm * 2;
+function calcGrid(pw, ph, bleedMm, cardW, cardH) {
+  const cellW = cardW + bleedMm * 2;
+  const cellH = cardH + bleedMm * 2;
   const cols = Math.floor((pw - PAGE_MARGIN * 2) / cellW);
   const rows = Math.floor((ph - PAGE_MARGIN * 2) / cellH);
   return { cols: Math.max(0, cols), rows: Math.max(0, rows) };
@@ -31,14 +31,15 @@ function calcGrid(pw, ph, bleedMm) {
 /**
  * Restituisce info complete sulla griglia, scegliendo automaticamente
  * l'orientamento che permette più immagini per pagina.
+ * cardW/cardH: dimensioni carta in mm (default carta da gioco standard 63×88).
  */
-export function getGridInfo(formatKey, bleedMm) {
+export function getGridInfo(formatKey, bleedMm, cardW = CARD_W, cardH = CARD_H) {
   const [fw, fh] = PAPER_FORMATS[formatKey];
-  const cellW = CARD_W + bleedMm * 2;
-  const cellH = CARD_H + bleedMm * 2;
+  const cellW = cardW + bleedMm * 2;
+  const cellH = cardH + bleedMm * 2;
 
-  const portrait = calcGrid(fw, fh, bleedMm);
-  const landscape = calcGrid(fh, fw, bleedMm);
+  const portrait = calcGrid(fw, fh, bleedMm, cardW, cardH);
+  const landscape = calcGrid(fh, fw, bleedMm, cardW, cardH);
 
   const useLandscape = (landscape.cols * landscape.rows) > (portrait.cols * portrait.rows);
 
@@ -86,14 +87,14 @@ export function cropMarkSpan(limit, gap, len) {
  * `bleed` sui bordi interni (mezzeria con la carta vicina), `bleed + offset`
  * sui bordi esterni (margine pagina).
  */
-function drawCropMarks(doc, x, y, bleed, limits) {
+function drawCropMarks(doc, x, y, bleed, limits, cardW, cardH) {
   const markLength = 3;
   const gap = 0.5;
 
   const cx = x + bleed;
   const cy = y + bleed;
-  const cw = CARD_W;
-  const ch = CARD_H;
+  const cw = cardW;
+  const ch = cardH;
 
   doc.setDrawColor(160, 160, 160);
   doc.setLineWidth(0.15);
@@ -263,10 +264,10 @@ function compressImage(img, cellWmm, cellHmm, dpi, bleedMm, bleedMode, quality =
 /**
  * Genera e scarica il PDF.
  */
-export async function generatePDF(items, formatKey, bleedMm, dpi = 600, bleedStyle = 'auto') {
+export async function generatePDF(items, formatKey, bleedMm, dpi = 600, bleedStyle = 'auto', cardW = CARD_W, cardH = CARD_H, cropMarks = true) {
   if (!items || items.length === 0) throw new Error('Nessuna immagine selezionata.');
 
-  const { cols, rows, cellW, cellH, pageW, pageH, orientation, offsetX, offsetY } = getGridInfo(formatKey, bleedMm);
+  const { cols, rows, cellW, cellH, pageW, pageH, orientation, offsetX, offsetY } = getGridInfo(formatKey, bleedMm, cardW, cardH);
 
   if (cols === 0 || rows === 0) {
     throw new Error("Il formato carta è troppo piccolo per almeno un'immagine.");
@@ -302,13 +303,15 @@ export async function generatePDF(items, formatKey, bleedMm, dpi = 600, bleedSty
       const mode = resolveBleedMode(item.bleedMode, bleedStyle);
       const jpeg = compressImage(imgEl, cellW, cellH, dpi, bleedMm, mode);
       doc.addImage(jpeg, 'JPEG', x, y, cellW, cellH);
-      const limits = {
-        left:  (col === 0 ? offsetX : 0) + bleedMm,
-        right: (col === cols - 1 ? offsetX : 0) + bleedMm,
-        up:    (row === 0 ? offsetY : 0) + bleedMm,
-        down:  (row === rows - 1 ? offsetY : 0) + bleedMm,
-      };
-      drawCropMarks(doc, x, y, bleedMm, limits);
+      if (cropMarks) {
+        const limits = {
+          left:  (col === 0 ? offsetX : 0) + bleedMm,
+          right: (col === cols - 1 ? offsetX : 0) + bleedMm,
+          up:    (row === 0 ? offsetY : 0) + bleedMm,
+          down:  (row === rows - 1 ? offsetY : 0) + bleedMm,
+        };
+        drawCropMarks(doc, x, y, bleedMm, limits, cardW, cardH);
+      }
 
       posOnPage++;
       imgIndex++;
