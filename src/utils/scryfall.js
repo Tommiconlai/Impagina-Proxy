@@ -50,7 +50,8 @@ export function parseCardList(text) {
     const tail = name.match(/\s+\(([0-9A-Za-z]{2,6})\)(?:\s+([0-9A-Za-z★-]+))?.*$/);
     if (tail) {
       set = tail[1].toLowerCase();
-      collector = (tail[2] || '').toLowerCase();
+      // NON lowercase: /cards/collection è case-sensitive sul collector (The List → "TMP-294").
+      collector = tail[2] || '';
       name = name.slice(0, tail.index);
     }
     name = name.trim();
@@ -179,8 +180,9 @@ export async function fetchScryfallImages(entries, onProgress) {
   const tasks = []; // { url, name, qty, bleedMode }
   for (const e of list) {
     const nl = e.name.toLowerCase();
+    const ec = e.collector.toLowerCase(); // chiavi case-insensitive (registrate lowercased)
     const card =
-      cardByKey.get(`${nl}|${e.set}|${e.collector}`) ||
+      cardByKey.get(`${nl}|${e.set}|${ec}`) ||
       cardByKey.get(`${nl}|${e.set}|`) ||
       cardByKey.get(`${nl}||`);
     if (!card) {
@@ -234,13 +236,21 @@ export async function fetchScryfallImages(entries, onProgress) {
 const CORS_PROXY = 'https://corsproxy.io/?url=';
 const px = (u) => CORS_PROXY + encodeURIComponent(u);
 
+// "qty Nome (SET) cn" — set+collector pinnano la stampa SCELTA NEL DECK; assenti →
+// solo nome (Scryfall sceglie la stampa di default). Il tail lo riparsa parseCardList.
+export function deckLine(qty, name, set, cn) {
+  if (!name) return '';
+  const tail = set && cn ? ` (${String(set).toUpperCase()}) ${cn}` : '';
+  return `${qty || 1} ${name}${tail}`;
+}
+
 async function archidektList(id) {
   const r = await fetch(px(`https://archidekt.com/api/decks/${id}/`));
   if (!r.ok) throw new Error(`Archidekt ha risposto ${r.status}`);
   const j = await r.json();
   return (j.cards || [])
     .filter((c) => !(c.categories || []).some((cat) => /maybe|sideboard|considering/i.test(cat)))
-    .map((c) => `${c.quantity || 1} ${c.card?.oracleCard?.name || ''}`.trim())
+    .map((c) => deckLine(c.quantity, c.card?.oracleCard?.name, c.card?.edition?.editioncode, c.card?.collectorNumber))
     .filter((l) => l.length > 1)
     .join('\n');
 }
@@ -253,7 +263,10 @@ async function moxfieldList(pubId) {
   const boards = j.boards || {};
   for (const name of ['commanders', 'mainboard']) {
     const cards = boards[name]?.cards || {};
-    for (const k in cards) out.push(`${cards[k].quantity || 1} ${cards[k].card?.name || ''}`.trim());
+    for (const k in cards) {
+      const c = cards[k].card || {};
+      out.push(deckLine(cards[k].quantity, c.name, c.set, c.cn));
+    }
   }
   return out.filter((l) => l.length > 1).join('\n');
 }

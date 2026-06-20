@@ -42,7 +42,7 @@ before restarting.
 | `src/components/ScryfallImportModal.jsx` | Modal: paste a card list **or a deck link** (URL field + "Carica" → `fetchDeckList` fills the textarea) → fetch from Scryfall → add to images. Pasted text persisted to `localStorage` (`ip:cardlist`). Accepts `(SET) collector` to pin a printing |
 | `src/components/ArtPickerModal.jsx` | Click a placed card → lists all Scryfall printings (`fetchPrints`, `/cards/search?unique=prints`) → pick one → `downloadAsFile` swaps `file`+`preview` (id/bleedMode kept). Card name is derived from the **filename**; `fetchPrints` picks the printing face whose name matches it, so DFC backs get back-face prints |
 | `src/utils/pdfGenerator.js` | Grid math (`getGridInfo(formatKey, bleedMm, cardW=63, cardH=88, customSheet=null)`; `formatKey==='custom'` uses `customSheet` mm dims, else `PAPER_FORMATS`) + `generatePDF(items, formatKey, bleedMm, dpi, bleedStyle, cardW, cardH, cropMarks, cropStyle, customSheet)` (jspdf, dynamically imported) + `drawCardWithBleed` (stretch/mirror/black bleed) + `resolveBleedMode` (per-card mode × global style) + `drawCropMarks(…, style)` (`lines`/`corners`) + `cropMarkSpan` (clamped crop marks) |
-| `src/utils/scryfall.js` | `parseCardList` (text → `{qty,name,set,collector}`) + `fetchScryfallImages` (`/cards/collection` batched, printing-pinned via name\|set\|collector keys, downloads PNGs as `File`; DFC → both faces) + `fetchPrints` + `downloadAsFile` + `fetchDeckList` (deck link → text, via `corsproxy.io`) |
+| `src/utils/scryfall.js` | `parseCardList` (text → `{qty,name,set,collector}`; collector keeps **original case** — Scryfall `/cards/collection` is case-sensitive on it, e.g. The List `TMP-294`) + `fetchScryfallImages` (`/cards/collection` batched, printing-pinned via name\|set\|collector keys, downloads PNGs as `File`; DFC → both faces) + `fetchPrints` + `downloadAsFile` + `fetchDeckList` (deck link → text, via `corsproxy.io`) + `deckLine(qty,name,set,cn)` (builds `qty Name (SET) cn` so deck links pin the **edition chosen in the deck**) |
 | `src/utils/scryfall.selfcheck.js` | `node`-runnable assert check for `parseCardList` (no framework). Run: `node src/utils/scryfall.selfcheck.js` |
 | `src/components/icons.jsx` | Custom lucide-style SVG icon set (currentColor), incl. `IconPlus`, `IconDownload`, `IconCopy`, `IconFrame` |
 | `src/index.css` | All styling + design tokens |
@@ -70,7 +70,17 @@ Tokens at the top of `src/index.css`. Also recorded in this project's Claude mem
 
 ## Done recently
 
-- **DFC back-face change-art fix (most recent):** `fetchPrints` extracted `card_faces[0]`
+- **Deck-link import pins the deck's edition (most recent):** `moxfieldList`/`archidektList`
+  emitted only `qty Name`, so Scryfall returned the *default* printing — not the one chosen in
+  the deck. They now emit `qty Name (SET) cn` via a shared `deckLine` helper (Moxfield card →
+  `set`/`cn`; Archidekt → `edition.editioncode`/`collectorNumber`), and the existing
+  `(SET) collector` pin pipeline does the rest. **Fixed a latent bug it exposed:** `parseCardList`
+  lowercased the collector, but `/cards/collection` is **case-sensitive** on it — alphanumeric
+  collectors (The List `TMP-294`, `PCY-45`) returned not-found. Collector now keeps original case;
+  Map keys stay case-insensitive. Verified live on the test deck: 100/100 cards resolve to the
+  exact edition, 0 not-found (was 2). Self-check + `deckLine` round-trip added. Tappedout left as-is
+  (`?fmt=txt` already passes any `(SET)` tail through; untested).
+- **DFC back-face change-art fix:** `fetchPrints` extracted `card_faces[0]`
   (front) for every printing, so changing a back face's art showed/applied the front. It now
   picks the face whose `name` matches the searched name (the back filename → back face). The
   search already matches by face name, so no import-chain change was needed. Verified live
