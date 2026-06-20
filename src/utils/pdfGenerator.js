@@ -203,16 +203,20 @@ export function drawCardWithBleed(ctx, img, x, y, cellW, cellH, bleedPx, mode = 
     // Larghezza/altezza (in px sorgente) della fascia da specchiare
     const bsw = Math.max(1, Math.min(iw, Math.round((b * iw) / tw)));
     const bsh = Math.max(1, Math.min(ih, Math.round((b * ih) / th)));
+    // ponytail: le fasce specchiate sconfinano di ov px DENTRO il trim per coprire
+    // la cucitura (a coord. frazionarie l'AA lasciava trasparire la riga nera dello
+    // sfondo tra carta e bleed). Sul bordo lo specchio ≈ pixel originale → invisibile.
+    const ov = 1;
     // Bordi
-    blit(ctx, img, 0, 0, iw, bsh, tx, ty - b, tw, b, false, true);          // alto
-    blit(ctx, img, 0, ih - bsh, iw, bsh, tx, ty + th, tw, b, false, true);  // basso
-    blit(ctx, img, 0, 0, bsw, ih, tx - b, ty, b, th, true, false);          // sinistra
-    blit(ctx, img, iw - bsw, 0, bsw, ih, tx + tw, ty, b, th, true, false);  // destra
-    // Angoli
-    blit(ctx, img, 0, 0, bsw, bsh, tx - b, ty - b, b, b, true, true);                  // alto-sx
-    blit(ctx, img, iw - bsw, 0, bsw, bsh, tx + tw, ty - b, b, b, true, true);          // alto-dx
-    blit(ctx, img, 0, ih - bsh, bsw, bsh, tx - b, ty + th, b, b, true, true);          // basso-sx
-    blit(ctx, img, iw - bsw, ih - bsh, bsw, bsh, tx + tw, ty + th, b, b, true, true);  // basso-dx
+    blit(ctx, img, 0, 0, iw, bsh, tx, ty - b, tw, b + ov, false, true);              // alto
+    blit(ctx, img, 0, ih - bsh, iw, bsh, tx, ty + th - ov, tw, b + ov, false, true); // basso
+    blit(ctx, img, 0, 0, bsw, ih, tx - b, ty, b + ov, th, true, false);              // sinistra
+    blit(ctx, img, iw - bsw, 0, bsw, ih, tx + tw - ov, ty, b + ov, th, true, false); // destra
+    // Angoli (sovrapposti di ov in entrambe le direzioni)
+    blit(ctx, img, 0, 0, bsw, bsh, tx - b, ty - b, b + ov, b + ov, true, true);                       // alto-sx
+    blit(ctx, img, iw - bsw, 0, bsw, bsh, tx + tw - ov, ty - b, b + ov, b + ov, true, true);          // alto-dx
+    blit(ctx, img, 0, ih - bsh, bsw, bsh, tx - b, ty + th - ov, b + ov, b + ov, true, true);          // basso-sx
+    blit(ctx, img, iw - bsw, ih - bsh, bsw, bsh, tx + tw - ov, ty + th - ov, b + ov, b + ov, true, true); // basso-dx
     return;
   }
 

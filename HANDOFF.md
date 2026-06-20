@@ -77,7 +77,16 @@ Tokens at the top of `src/index.css`. Also recorded in this project's Claude mem
 
 ## Done recently
 
-- **Deck-link import pins the deck's edition (most recent):** `moxfieldList`/`archidektList`
+- **Mirror-bleed seam fix (most recent):** some full-art cards showed a thin dark line at
+  the card↔bleed join in `mirror` mode. Cause: the art's outermost pixel column is a dark
+  fringe, and the old code placed the card's col-0 fringe and the mirror band's col-0 fringe
+  *adjacent* at the trim → a doubled ~1px dark line. `drawCardWithBleed` now overlaps each
+  mirror band (4 edges + 4 corners) `ov = 1` px **inward** over the trim, collapsing the two
+  fringes onto one pixel. Measured on the real SLD Exotic Orchard PNG: seam min-luma 154 → 220,
+  isolated dip gone. Stretch/black modes untouched.
+- **UI translated to English:** all visible strings (sidebar, preview, both modals, errors,
+  `index.html`); code comments stay Italian. Verified live.
+- **Deck-link import pins the deck's edition:** `moxfieldList`/`archidektList`
   emitted only `qty Name`, so Scryfall returned the *default* printing — not the one chosen in
   the deck. They now emit `qty Name (SET) cn` via a shared `deckLine` helper (Moxfield card →
   `set`/`cn`; Archidekt → `edition.editioncode`/`collectorNumber`), and the existing
