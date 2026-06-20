@@ -1,4 +1,4 @@
-# HANDOFF — ImpaginaProxies
+# HANDOFF — Proxoteca
 
 Context for the next Claude Code session.
 
@@ -53,7 +53,7 @@ before restarting.
 | `src/utils/scryfall.selfcheck.js` | `node`-runnable assert check for `parseCardList` (no framework). Run: `node src/utils/scryfall.selfcheck.js` |
 | `src/components/icons.jsx` | Custom lucide-style SVG icon set (currentColor), incl. `IconPlus`, `IconDownload`, `IconCopy`, `IconFrame` |
 | `src/index.css` | All styling + design tokens |
-| `public/favicon.svg` | Branded gold layout-grid mark |
+| `public/` (favicons) | Proxoteca icon set: `favicon.svg/.ico`, `favicon-16/32/48/192/512.png`, `apple-touch-icon.png`, `site.webmanifest` (dark `#16181D` rounded-square, white burst mark). Linked in `index.html` with root-absolute paths → Vite rewrites to `./` via `base:'./'` (Pages-safe); manifest icon `src`s are relative. **In-app header logo is still the gold `IconLayout`** (not the favicon mark) |
 
 ## Design system
 
@@ -233,7 +233,6 @@ All verified live + `npm run lint` clean + `npm run build` green.
   Archidekt / Tappedout. If it rate-limits or dies, swap `CORS_PROXY` in `utils/scryfall.js`
   or add a tiny backend. The Tappedout parser uses a documented `?fmt=txt` shape but wasn't
   tested with a real deck — fix the field path if an import comes back empty.
-- **`public/vite.svg`** is dead (favicon switched to `favicon.svg`). Safe to delete.
 - **A11y:** sidebar `<select>`s now carry `aria-label`s (field text is a decorative `<span>`);
   custom W/H inputs are wrapped in `<label>`. Remaining gap: no full keyboard/focus-visible audit.
 - **Touch:** the per-card hover buttons (change-art / duplicate / bleed / delete) reveal on

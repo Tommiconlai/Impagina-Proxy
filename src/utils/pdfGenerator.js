@@ -1,5 +1,5 @@
 /**
- * PDF Generator Utility — ImpaginaProxies
+ * PDF Generator Utility — Proxoteca
  *
  * Costanti: tutte le misure in mm, jsPDF usa 'mm' come unità.
  * Orientamento: auto-calcolato per massimizzare il numero di immagini.

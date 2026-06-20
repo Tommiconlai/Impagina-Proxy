@@ -141,12 +141,12 @@ export default function App() {
     const blob = new Blob([text + '\n'], { type: 'text/plain' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'impagina-proxies.txt';
+    a.download = 'proxoteca.txt';
     a.click();
     URL.revokeObjectURL(a.href);
     setNotice(custom
       ? `Saved ${cards} Scryfall card${cards > 1 ? 's' : ''}. ${custom} custom image${custom > 1 ? 's' : ''} not included (text can't store images).`
-      : `Saved ${cards} Scryfall card${cards > 1 ? 's' : ''} to impagina-proxies.txt.`);
+      : `Saved ${cards} Scryfall card${cards > 1 ? 's' : ''} to proxoteca.txt.`);
   };
 
   const handleGenerate = async () => {
@@ -176,7 +176,7 @@ export default function App() {
       {/* ── Header ── */}
       <header className="app-header">
         <span className="logo-icon"><IconLayout size={20} /></span>
-        <h1>ImpaginaProxies</h1>
+        <h1>Proxoteca</h1>
         <span className="tagline">Lay out card proxies for printing</span>
       </header>
 
