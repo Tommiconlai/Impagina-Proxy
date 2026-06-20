@@ -66,6 +66,32 @@ export function imageFaces(card) {
   return [];
 }
 
+/**
+ * Tutte le stampe (printings) di una carta, per scambiare l'art.
+ * ponytail: solo prima pagina (175 max); +paginazione se una carta ne ha di più.
+ * @returns {Promise<{id,set,setName,thumb,png}[]>}
+ */
+export async function fetchPrints(name) {
+  const q = encodeURIComponent(`!"${name}" game:paper`);
+  const res = await fetch(`https://api.scryfall.com/cards/search?q=${q}&unique=prints&order=released`);
+  if (res.status === 404) return []; // nessuna stampa
+  if (!res.ok) throw new Error(`Scryfall ha risposto ${res.status}`);
+  const json = await res.json();
+  return (json.data || [])
+    .map((c) => {
+      const u = c.image_uris || c.card_faces?.[0]?.image_uris || {};
+      return { id: c.id, set: (c.set || '').toUpperCase(), setName: c.set_name || '', thumb: u.small || u.normal, png: u.png || u.large };
+    })
+    .filter((p) => p.thumb && p.png);
+}
+
+/** Scarica un'immagine come File (riusa la pipeline esistente). */
+export async function downloadAsFile(url, name) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Download immagine fallito (${res.status})`);
+  return new File([await res.blob()], `${sanitizeName(name)}.png`, { type: 'image/png' });
+}
+
 async function mapLimit(items, limit, fn) {
   const results = new Array(items.length);
   let next = 0;

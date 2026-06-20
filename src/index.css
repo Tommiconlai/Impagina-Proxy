@@ -613,6 +613,47 @@ input[type="range"]::-webkit-slider-thumb:hover {
   font-size: 0.78rem;
 }
 
+/* Griglia stampe del box "Cambia art" */
+.art-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+  max-height: 60vh;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+
+.art-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+.art-cell:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.art-cell img {
+  width: 100%;
+  border-radius: 4px;
+  display: block;
+}
+
+.art-cell:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .import-textarea {
   width: 100%;
   min-height: 180px;

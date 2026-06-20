@@ -4,7 +4,9 @@ import { useDropzone } from 'react-dropzone';
 import PageSettings from './components/PageSettings';
 import PagePreview from './components/PagePreview';
 import ScryfallImportModal from './components/ScryfallImportModal';
+import ArtPickerModal from './components/ArtPickerModal';
 import { generatePDF, getGridInfo } from './utils/pdfGenerator';
+import { downloadAsFile } from './utils/scryfall';
 import { IconFile, IconAlert, IconLayout, IconTrash } from './components/icons';
 
 export default function App() {
@@ -16,7 +18,9 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null); // carta di cui cambiare l'art
   const { perPage } = getGridInfo(formatKey, bleedMm);
+  const editing = editingId ? images.find(i => i.id === editingId) : null;
 
   // Revoca gli object URL residui allo smontaggio (evita leak di memoria).
   // imagesRef tiene il riferimento aggiornato senza ri-registrare l'effect.
@@ -52,6 +56,18 @@ export default function App() {
   const handleClearAll = () => {
     images.forEach(i => URL.revokeObjectURL(i.preview));
     setImages([]);
+  };
+
+  // Cambia art: scarica la stampa scelta e sostituisce file+preview (id/bleedMode invariati).
+  const handleReplaceArt = async (png, name) => {
+    const file = await downloadAsFile(png, name);
+    const preview = URL.createObjectURL(file);
+    setImages(prev => prev.map(it => {
+      if (it.id !== editingId) return it;
+      URL.revokeObjectURL(it.preview);
+      return { ...it, file, preview };
+    }));
+    setEditingId(null);
   };
 
   const handleGenerate = async () => {
@@ -135,6 +151,7 @@ export default function App() {
             bleedMm={bleedMm}
             bleedStyle={bleedStyle}
             onRemove={handleRemove}
+            onChangeArt={setEditingId}
             onAddPhotos={open}
             onImportScryfall={() => setImportOpen(true)}
             isDragActive={isDragActive}
@@ -148,6 +165,15 @@ export default function App() {
         onClose={() => setImportOpen(false)}
         onImport={addItems}
       />
+
+      {editing && (
+        <ArtPickerModal
+          key={editing.id}
+          card={editing}
+          onClose={() => setEditingId(null)}
+          onPick={handleReplaceArt}
+        />
+      )}
     </div>
   );
 }

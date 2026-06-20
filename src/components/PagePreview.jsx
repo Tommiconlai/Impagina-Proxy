@@ -157,7 +157,7 @@ export function PageCanvas({ pageImages, formatKey, bleedMm, bleedStyle, preview
 }
 
 // ── Componente principale ─────────────────────────────────────
-export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, onRemove, onAddPhotos, onImportScryfall, isDragActive, missing }) {
+export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, onRemove, onChangeArt, onAddPhotos, onImportScryfall, isDragActive, missing }) {
     const [pageOffset, setPageOffset] = useState(0);
     const [box, setBox] = useState({ w: 0, h: 0 });
     const [menuOpen, setMenuOpen] = useState(false);
@@ -255,12 +255,15 @@ export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, on
                                             top,
                                             width: CARD_W * scale,
                                             height: CARD_H * scale,
+                                            cursor: 'pointer',
                                         }}
+                                        onClick={() => onChangeArt(img.id)}
+                                        title="Cambia art"
                                     >
                                         <button
                                             type="button"
                                             className="preview-card-delete"
-                                            onClick={() => onRemove(img.id)}
+                                            onClick={(e) => { e.stopPropagation(); onRemove(img.id); }}
                                             title="Rimuovi"
                                             aria-label={`Rimuovi ${img.file.name}`}
                                         >
