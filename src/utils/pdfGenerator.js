@@ -123,8 +123,6 @@ function drawCropMarks(doc, x, y, bleed, limits) {
   }
 }
 
-const MM_TO_PX = (dpi) => dpi / 25.4;
-
 // drawImage con flip opzionale orizzontale/verticale (per il mirror del bleed).
 function blit(ctx, img, sx, sy, sw, sh, dx, dy, dw, dh, flipX, flipY) {
   ctx.save();
@@ -233,7 +231,7 @@ function loadImageElement(file) {
  * taglio e l'abbondanza è generata con edge-stretch; altrimenti object-fit cover.
  */
 function compressImage(img, cellWmm, cellHmm, dpi, bleedMm, bleedMode, quality = 0.85) {
-  const mmToPx = MM_TO_PX(dpi);
+  const mmToPx = dpi / 25.4;
   const w = Math.round(cellWmm * mmToPx);
   const h = Math.round(cellHmm * mmToPx);
   const canvas = document.createElement('canvas');

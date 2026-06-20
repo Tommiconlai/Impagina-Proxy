@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import './index.css';
 import { useDropzone } from 'react-dropzone';
 import PageSettings from './components/PageSettings';
@@ -27,7 +27,7 @@ export default function App() {
   }, []);
 
   // Crea gli item immagine. entries: [{file, bleedMode}].
-  const addItems = useCallback((entries) => {
+  const addItems = (entries) => {
     const newItems = entries.map(({ file, bleedMode }) => ({
       file,
       preview: URL.createObjectURL(file),
@@ -36,35 +36,29 @@ export default function App() {
     }));
     setImages(prev => [...prev, ...newItems]);
     setError(null);
-  }, []);
+  };
 
   // Upload manuali (drag&drop / file picker): nessuna abbondanza generata.
-  const handleImagesAdded = useCallback(
-    (files) => addItems(files.map(file => ({ file, bleedMode: 'none' }))),
-    [addItems],
-  );
+  const handleImagesAdded = (files) => addItems(files.map(file => ({ file, bleedMode: 'none' })));
 
-  // Import Scryfall: items già [{file, bleedMode}] con la modalità per carta.
-  const handleScryfallImport = useCallback((items) => addItems(items), [addItems]);
-
-  const handleRemove = useCallback((id) => {
+  const handleRemove = (id) => {
     setImages(prev => {
       const item = prev.find(i => i.id === id);
       if (item) URL.revokeObjectURL(item.preview);
       return prev.filter(i => i.id !== id);
     });
-  }, []);
+  };
 
-  const handleClearAll = useCallback(() => {
+  const handleClearAll = () => {
     images.forEach(i => URL.revokeObjectURL(i.preview));
     setImages([]);
-  }, [images]);
+  };
 
   const handleGenerate = async () => {
     setError(null);
     setLoading(true);
     try {
-      await generatePDF(images.map(i => ({ file: i.file, bleedMode: i.bleedMode })), formatKey, bleedMm, dpi, bleedStyle);
+      await generatePDF(images, formatKey, bleedMm, dpi, bleedStyle);
     } catch (err) {
       setError(err.message || 'Errore durante la generazione del PDF.');
     } finally {
@@ -152,7 +146,7 @@ export default function App() {
       <ScryfallImportModal
         open={importOpen}
         onClose={() => setImportOpen(false)}
-        onImport={handleScryfallImport}
+        onImport={addItems}
       />
     </div>
   );
