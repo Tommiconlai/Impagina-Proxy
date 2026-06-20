@@ -36,13 +36,15 @@ before restarting.
 
 | File | Role |
 |------|------|
-| `src/App.jsx` | Root: state (images, format, bleed, dpi, import modal), header/sidebar/main layout, `react-dropzone` (full-area drag&drop + `open()`); image items carry a `bleedMode` (`none`/`stretch`/`mirror`) |
-| `src/components/PageSettings.jsx` | Sidebar: format/bleed/dpi selects + layout info box (griglia / immagini per pagina / dimensioni) |
-| `src/components/PagePreview.jsx` | Preview: one large centered page (`PageCanvas`) + per-card hover-delete overlay; footer with pager + count + green "+" menu (carica file / importa Scryfall) |
-| `src/components/ScryfallImportModal.jsx` | Modal: paste a card list → fetch from Scryfall → add to images (uses `utils/scryfall.js`) |
-| `src/utils/pdfGenerator.js` | Grid math (`getGridInfo`, constants) + `generatePDF` (jspdf, dynamically imported) + `drawCardWithBleed` (stretch/mirror bleed) + `cropMarkSpan` (clamped crop marks) |
-| `src/utils/scryfall.js` | `parseCardList` (text → {qty,name}) + `fetchScryfallImages` (`/cards/collection` batched, downloads PNGs as `File`; DFC → both faces) |
-| `src/components/icons.jsx` | Custom lucide-style SVG icon set (currentColor), incl. `IconPlus`, `IconDownload` |
+| `src/App.jsx` | Root: state (images, format, bleed, bleedStyle, dpi, import + art-picker modals), header/sidebar/main layout, `react-dropzone` (full-area drag&drop + `open()`). Settings persisted to `localStorage` (`ip:format`/`ip:bleed`/`ip:bleedStyle`/`ip:dpi`). Image items carry a `bleedMode` (`none`/`stretch`/`mirror`). Handlers: add / remove / clearAll / toggleBleed (none↔stretch) / duplicate / replaceArt |
+| `src/components/PageSettings.jsx` | Sidebar: format / bleed / **bleed-style** (auto/mirror/stretch/black) / dpi selects + layout info box (griglia / immagini per pagina / dimensioni) |
+| `src/components/PagePreview.jsx` | Preview: one large centered page (`PageCanvas`) + per-card hover overlay (click = change art; buttons: duplicate, bleed on/off, delete). `PageCanvas` draws cards + bleed + crop marks + a **low-res warning** triangle (source < ½ the px the chosen DPI needs). Footer: pager + count + green "+" menu (carica file / importa Scryfall) |
+| `src/components/ScryfallImportModal.jsx` | Modal: paste a card list → fetch from Scryfall → add to images. Pasted text persisted to `localStorage` (`ip:cardlist`). Accepts `(SET) collector` to pin a printing |
+| `src/components/ArtPickerModal.jsx` | Click a placed card → lists all Scryfall printings (`fetchPrints`, `/cards/search?unique=prints`) → pick one → `downloadAsFile` swaps `file`+`preview` (id/bleedMode kept). Card name is derived from the **filename** (DFC / special chars → no prints) |
+| `src/utils/pdfGenerator.js` | Grid math (`getGridInfo`, constants) + `generatePDF` (jspdf, dynamically imported) + `drawCardWithBleed` (stretch/mirror/black bleed) + `resolveBleedMode` (per-card mode × global style) + `cropMarkSpan` (clamped crop marks) |
+| `src/utils/scryfall.js` | `parseCardList` (text → `{qty,name,set,collector}`) + `fetchScryfallImages` (`/cards/collection` batched, printing-pinned via name\|set\|collector keys, downloads PNGs as `File`; DFC → both faces) + `fetchPrints` + `downloadAsFile` |
+| `src/utils/scryfall.selfcheck.js` | `node`-runnable assert check for `parseCardList` (no framework). Run: `node src/utils/scryfall.selfcheck.js` |
+| `src/components/icons.jsx` | Custom lucide-style SVG icon set (currentColor), incl. `IconPlus`, `IconDownload`, `IconCopy`, `IconFrame` |
 | `src/index.css` | All styling + design tokens |
 | `public/favicon.svg` | Branded gold layout-grid mark |
 
@@ -68,6 +70,25 @@ Tokens at the top of `src/index.css`. Also recorded in this project's Claude mem
 
 ## Done recently
 
+- **Five usability features (most recent):**
+  - *Persistence:* settings (`formatKey`/`bleedMm`/`bleedStyle`/`dpi`) + the pasted
+    Scryfall list survive reload via `localStorage`. Images (blobs) are not persisted —
+    re-import is one click. Corrupt `ip:format` falls back to A3 (guards a crash in `getGridInfo`).
+  - *Bleed on manual uploads:* per-card hover button toggles `bleedMode` none↔stretch.
+    Before this, uploads were locked to object-fit cover and the bleed feature never touched
+    them. Cards with bleed show a persistent gold frame indicator. Global "Stile abbondanza"
+    can still force mirror/black on top.
+  - *Duplicate card:* hover button inserts a copy right after the original (fresh object URL).
+  - *Pin printing at import:* `parseCardList` now captures the `(SET) collector` tail instead of
+    stripping it; `/cards/collection` uses the most precise identifier (set+collector → name+set →
+    name). Resolved cards are registered under `name|set|collector` keys so mixed pinned/unpinned
+    lists match back without collisions.
+  - *Low-res warning:* `PageCanvas` draws a red "!" triangle on a card whose source image can't
+    supply half the px the chosen DPI needs (Scryfall PNGs ≈300 DPI → clean up to 600 DPI).
+  - Self-check for the parser in `scryfall.selfcheck.js`. Verified live; build + lint green.
+- **Change-art picker:** click a placed card → `ArtPickerModal` lists every Scryfall printing
+  (`/cards/search?unique=prints`) → pick one → swaps the image in place (keeps id/bleedMode).
+  Name is read from the card's filename, so renamed/DFC files may find no prints.
 - **Bleed generation for Scryfall imports:** Scryfall cards arrive at trim size (no bleed).
   Items carry a `bleedMode` (`'stretch'` | `'mirror'` for Scryfall, `'none'` for manual
   uploads). `pdfGenerator.drawCardWithBleed` draws the card 1:1 in the trim area and fills
@@ -118,10 +139,12 @@ All verified live + `npm run lint` clean + `npm run build` green.
 - **`public/vite.svg`** is dead (favicon switched to `favicon.svg`). Safe to delete.
 - **A11y:** sidebar `<select>`s are labeled by `<h2>` section titles, not `<label for>` /
   `aria-label`. Functional but could be improved.
-- **Touch:** the per-card delete × reveals on hover, so it's not reachable on touch
-  devices (no tap-to-reveal). Fine for the desktop print workflow; revisit if mobile
-  matters.
-- **No tests.**
+- **Touch:** the per-card hover buttons (change-art / duplicate / bleed / delete) reveal on
+  hover, so they're not reachable on touch devices (no tap-to-reveal). Fine for the desktop
+  print workflow; revisit if mobile matters.
+- **Low-res warning is canvas-drawn** (not a DOM badge), so it's visual-only — no screen-reader
+  text. Acceptable for a print-quality hint; tied to the same a11y gap above.
+- **Tests:** only `scryfall.selfcheck.js` (parseCardList). No component/integration tests.
 
 ## Conventions
 
