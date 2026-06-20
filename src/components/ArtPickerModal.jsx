@@ -14,32 +14,32 @@ export default function ArtPickerModal({ card, onClose, onPick }) {
         let alive = true;
         fetchPrints(name)
             .then((p) => { if (alive) setPrints(p); })
-            .catch((e) => { if (alive) setError(e.message || 'Errore Scryfall.'); });
+            .catch((e) => { if (alive) setError(e.message || 'Scryfall error.'); });
         return () => { alive = false; };
     }, [name]);
 
     const pick = async (p) => {
         setPicking(true);
         try { await onPick(p.png, name); }
-        catch (e) { setError(e.message || 'Download fallito.'); setPicking(false); }
+        catch (e) { setError(e.message || 'Download failed.'); setPicking(false); }
     };
 
     return (
         <div className="modal-overlay" onClick={picking ? undefined : onClose}>
-            <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={`Cambia art: ${name}`}>
+            <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={`Change art: ${name}`}>
                 <div className="modal-header">
-                    <h2>Cambia art — {name}</h2>
-                    <button className="modal-close" onClick={onClose} aria-label="Chiudi" disabled={picking}>
+                    <h2>Change art — {name}</h2>
+                    <button className="modal-close" onClick={onClose} aria-label="Close" disabled={picking}>
                         <IconX size={18} />
                     </button>
                 </div>
 
                 {error && <div className="info-box info-box-error"><span>{error}</span></div>}
                 {prints === null && !error && (
-                    <div className="import-status"><span className="import-spinner" /> Cerco stampe…</div>
+                    <div className="import-status"><span className="import-spinner" /> Searching printings…</div>
                 )}
                 {prints && prints.length === 0 && (
-                    <p className="modal-hint">Nessuna stampa trovata per “{name}”.</p>
+                    <p className="modal-hint">No printings found for “{name}”.</p>
                 )}
                 {prints && prints.length > 0 && (
                     <div className="art-grid">
@@ -51,7 +51,7 @@ export default function ArtPickerModal({ card, onClose, onPick }) {
                         ))}
                     </div>
                 )}
-                {picking && <div className="import-status"><span className="import-spinner" /> Scarico…</div>}
+                {picking && <div className="import-status"><span className="import-spinner" /> Downloading…</div>}
             </div>
         </div>
     );

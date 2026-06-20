@@ -22,11 +22,11 @@ export default function ScryfallImportModal({ open, onClose, onImport }) {
         setError(null); setResult(null); setLoadingLink(true);
         try {
             const list = await fetchDeckList(u);
-            if (!list) { setError('Nessuna carta trovata nel deck (formato del sito cambiato?).'); return; }
+            if (!list) { setError('No cards found in the deck (did the site format change?).'); return; }
             setText(list);
             localStorage.setItem('ip:cardlist', list);
         } catch (e) {
-            setError(e.message || 'Errore nel caricare il deck.');
+            setError(e.message || 'Error loading the deck.');
         } finally {
             setLoadingLink(false);
         }
@@ -34,7 +34,7 @@ export default function ScryfallImportModal({ open, onClose, onImport }) {
 
     const handleImport = async () => {
         const entries = parseCardList(text);
-        if (!entries.length) { setError('Inserisci almeno una carta.'); return; }
+        if (!entries.length) { setError('Enter at least one card.'); return; }
         setError(null);
         setResult(null);
         setBusy(true);
@@ -47,7 +47,7 @@ export default function ScryfallImportModal({ open, onClose, onImport }) {
             if (files.length) onImport(files);
             setResult({ imported: files.length, notFound });
         } catch (e) {
-            setError(e.message || 'Errore durante l’import.');
+            setError(e.message || 'Error during import.');
         } finally {
             setBusy(false);
         }
@@ -55,18 +55,18 @@ export default function ScryfallImportModal({ open, onClose, onImport }) {
 
     return (
         <div className="modal-overlay" onClick={close}>
-            <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Importa da Scryfall">
+            <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Import from Scryfall">
                 <div className="modal-header">
-                    <h2>Importa da Scryfall</h2>
-                    <button className="modal-close" onClick={close} aria-label="Chiudi" disabled={busy}>
+                    <h2>Import from Scryfall</h2>
+                    <button className="modal-close" onClick={close} aria-label="Close" disabled={busy}>
                         <IconX size={18} />
                     </button>
                 </div>
 
                 <p className="modal-hint">
-                    Incolla un link deck oppure la lista a mano. Una carta per riga, formato
-                    {' '}<code>1x Nome Carta</code>; aggiungi <code>(SET) num</code> per scegliere la stampa.
-                    Le doppia-faccia importano fronte e retro.
+                    Paste a deck link or the list by hand. One card per line, format
+                    {' '}<code>1x Card Name</code>; add <code>(SET) num</code> to pick the printing.
+                    Double-faced cards import front and back.
                 </p>
 
                 <div className="import-link-row">
@@ -76,7 +76,7 @@ export default function ScryfallImportModal({ open, onClose, onImport }) {
                         value={link}
                         onChange={(e) => setLink(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter') handleLoadLink(); }}
-                        placeholder="Link deck (Moxfield, Archidekt, Tappedout)"
+                        placeholder="Deck link (Moxfield, Archidekt, Tappedout)"
                         disabled={busy || loadingLink}
                         spellCheck={false}
                     />
@@ -85,7 +85,7 @@ export default function ScryfallImportModal({ open, onClose, onImport }) {
                         onClick={handleLoadLink}
                         disabled={busy || loadingLink || !link.trim()}
                     >
-                        {loadingLink ? <><span className="spinner" /> Carico…</> : 'Carica'}
+                        {loadingLink ? <><span className="spinner" /> Loading…</> : 'Load'}
                     </button>
                 </div>
 
@@ -106,16 +106,16 @@ export default function ScryfallImportModal({ open, onClose, onImport }) {
                 {busy && (
                     <div className="import-status">
                         <span className="import-spinner" />
-                        Scarico immagini{progress.total ? ` ${progress.done}/${progress.total}` : '…'}
+                        Downloading images{progress.total ? ` ${progress.done}/${progress.total}` : '…'}
                     </div>
                 )}
 
                 {result && (
                     <div className="import-result">
-                        <div>✓ {result.imported} immagini importate</div>
+                        <div>✓ {result.imported} images imported</div>
                         {result.notFound.length > 0 && (
                             <div className="import-notfound">
-                                ✗ {result.notFound.length} non trovate: {result.notFound.join(', ')}
+                                ✗ {result.notFound.length} not found: {result.notFound.join(', ')}
                             </div>
                         )}
                     </div>
@@ -123,14 +123,14 @@ export default function ScryfallImportModal({ open, onClose, onImport }) {
 
                 <div className="modal-actions">
                     {!result && (
-                        <button className="btn-secondary" onClick={close} disabled={busy || loadingLink}>Chiudi</button>
+                        <button className="btn-secondary" onClick={close} disabled={busy || loadingLink}>Close</button>
                     )}
                     <button
                         className="btn-generate import-btn"
                         onClick={busy ? undefined : (result ? onClose : handleImport)}
                         disabled={busy || loadingLink || (!result && !text.trim())}
                     >
-                        {busy ? <><span className="spinner" /> Import…</> : result ? 'Finito' : 'Importa'}
+                        {busy ? <><span className="spinner" /> Importing…</> : result ? 'Done' : 'Import'}
                     </button>
                 </div>
             </div>

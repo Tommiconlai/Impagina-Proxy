@@ -3,18 +3,18 @@ import { PAPER_FORMATS, getGridInfo } from '../utils/pdfGenerator';
 const DPI_OPTIONS = [150, 300, 600, 800, 1000, 1200];
 const BLEED_OPTIONS = [0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0];
 const BLEED_STYLE_OPTIONS = [
-    { value: 'auto', label: 'Auto (per carta)' },
-    { value: 'mirror', label: 'Specchio' },
-    { value: 'stretch', label: 'Stira' },
-    { value: 'black', label: 'Nero' },
+    { value: 'auto', label: 'Auto (per card)' },
+    { value: 'mirror', label: 'Mirror' },
+    { value: 'stretch', label: 'Stretch' },
+    { value: 'black', label: 'Black' },
 ];
 // Preset dimensioni carta in mm. 'custom' → input liberi.
 const CARD_TYPES = [
     { key: 'mtg', label: 'Standard — 63×88', w: 63, h: 88 },
-    { key: 'small', label: 'Piccola / JP — 59×86', w: 59, h: 86 },
+    { key: 'small', label: 'Small / JP — 59×86', w: 59, h: 86 },
     { key: 'mini', label: 'Mini USA — 41×63', w: 41, h: 63 },
     { key: 'tarot', label: 'Tarot — 70×120', w: 70, h: 120 },
-    { key: 'custom', label: 'Personalizzata…', w: 0, h: 0 },
+    { key: 'custom', label: 'Custom…', w: 0, h: 0 },
 ];
 
 // Label-sopra + select. aria-label associa il nome al control (niente <label for>).
@@ -61,17 +61,17 @@ export default function PageSettings({
         <>
             {/* Gruppo 1 — Foglio & carta */}
             <div className="sidebar-section">
-                <h2>Foglio &amp; carta</h2>
+                <h2>Sheet &amp; card</h2>
                 <div className="glass-card compact settings-group">
                     <div className="field">
-                        <span className="field-label">Formato foglio</span>
+                        <span className="field-label">Sheet format</span>
                         <div className="select-wrapper">
-                            <select value={formatKey} onChange={e => setFormatKey(e.target.value)} aria-label="Formato foglio">
+                            <select value={formatKey} onChange={e => setFormatKey(e.target.value)} aria-label="Sheet format">
                                 {Object.keys(PAPER_FORMATS).map(k => {
                                     const [w, h] = PAPER_FORMATS[k];
                                     return <option key={k} value={k}>{k} — {w}×{h} mm</option>;
                                 })}
-                                <option value="custom">Personalizzato…</option>
+                                <option value="custom">Custom…</option>
                             </select>
                         </div>
                         {formatKey === 'custom' && (
@@ -81,12 +81,12 @@ export default function PageSettings({
                                     <button type="button" className={sheetUnit === 'in' ? 'active' : ''} onClick={() => onUnitChange('in')}>inch</button>
                                 </div>
                                 <div className="card-size-custom">
-                                    <label>L
+                                    <label>W
                                         <input type="number" min="1" step={sheetUnit === 'in' ? '0.1' : '1'}
                                             value={sheetW} onChange={e => setSheetW(Number(e.target.value))} />
                                         {sheetUnit}
                                     </label>
-                                    <label>A
+                                    <label>H
                                         <input type="number" min="1" step={sheetUnit === 'in' ? '0.1' : '1'}
                                             value={sheetH} onChange={e => setSheetH(Number(e.target.value))} />
                                         {sheetUnit}
@@ -97,9 +97,9 @@ export default function PageSettings({
                     </div>
 
                     <div className="field">
-                        <span className="field-label">Tipo carta</span>
+                        <span className="field-label">Card type</span>
                         <div className="select-wrapper">
-                            <select value={cardType} onChange={e => onTypeChange(e.target.value)} aria-label="Tipo carta">
+                            <select value={cardType} onChange={e => onTypeChange(e.target.value)} aria-label="Card type">
                                 {CARD_TYPES.map(t => (
                                     <option key={t.key} value={t.key}>{t.label}</option>
                                 ))}
@@ -107,12 +107,12 @@ export default function PageSettings({
                         </div>
                         {cardType === 'custom' && (
                             <div className="card-size-custom">
-                                <label>L
+                                <label>W
                                     <input type="number" min="20" max="200" step="0.5"
                                         value={cardW} onChange={e => setCardW(Number(e.target.value))} />
                                     mm
                                 </label>
-                                <label>A
+                                <label>H
                                     <input type="number" min="20" max="200" step="0.5"
                                         value={cardH} onChange={e => setCardH(Number(e.target.value))} />
                                     mm
@@ -121,7 +121,7 @@ export default function PageSettings({
                         )}
                     </div>
 
-                    <SelectField label="Bordo al vivo" value={bleedMm} onChange={e => setBleedMm(parseFloat(e.target.value))}>
+                    <SelectField label="Bleed" value={bleedMm} onChange={e => setBleedMm(parseFloat(e.target.value))}>
                         {BLEED_OPTIONS.map(v => (
                             <option key={v} value={v}>{v.toFixed(1)} mm</option>
                         ))}
@@ -131,15 +131,15 @@ export default function PageSettings({
 
             {/* Gruppo 2 — Stampa */}
             <div className="sidebar-section">
-                <h2>Stampa</h2>
+                <h2>Print</h2>
                 <div className="glass-card compact settings-group">
-                    <SelectField label="Stile abbondanza" value={bleedStyle} onChange={e => setBleedStyle(e.target.value)}>
+                    <SelectField label="Bleed style" value={bleedStyle} onChange={e => setBleedStyle(e.target.value)}>
                         {BLEED_STYLE_OPTIONS.map(o => (
                             <option key={o.value} value={o.value}>{o.label}</option>
                         ))}
                     </SelectField>
 
-                    <SelectField label="Risoluzione" value={dpi} onChange={e => setDpi(parseInt(e.target.value, 10))}>
+                    <SelectField label="Resolution" value={dpi} onChange={e => setDpi(parseInt(e.target.value, 10))}>
                         {DPI_OPTIONS.map(v => (
                             <option key={v} value={v}>{v} DPI</option>
                         ))}
@@ -154,13 +154,13 @@ export default function PageSettings({
                                     <polyline points="1 9 7 14 15 4" />
                                 </svg>
                             </span>
-                            <span>Mostra crocini</span>
+                            <span>Show crop marks</span>
                         </label>
                         {cropMarks && (
                             <div className="select-wrapper" style={{ marginTop: 10 }}>
-                                <select value={cropStyle} onChange={e => setCropStyle(e.target.value)} aria-label="Stile crocini">
-                                    <option value="lines">Linee</option>
-                                    <option value="corners">Squadrette ad angolo</option>
+                                <select value={cropStyle} onChange={e => setCropStyle(e.target.value)} aria-label="Crop mark style">
+                                    <option value="lines">Lines</option>
+                                    <option value="corners">Corner brackets</option>
                                 </select>
                             </div>
                         )}
@@ -170,12 +170,12 @@ export default function PageSettings({
 
             {/* Riepilogo */}
             <div className="sidebar-section">
-                <h2>Riepilogo</h2>
+                <h2>Summary</h2>
                 <div className="info-box">
-                    <strong>Foglio:</strong> {pw}×{ph} mm<br />
-                    <strong>Carta:</strong> {cardW}×{cardH} mm<br />
-                    <strong>Cella:</strong> {totalWmm}×{totalHmm} mm<br />
-                    <strong>Griglia:</strong> {cols}×{rows} · {perPage}/pagina
+                    <strong>Sheet:</strong> {pw}×{ph} mm<br />
+                    <strong>Card:</strong> {cardW}×{cardH} mm<br />
+                    <strong>Cell:</strong> {totalWmm}×{totalHmm} mm<br />
+                    <strong>Grid:</strong> {cols}×{rows} · {perPage}/page
                 </div>
             </div>
         </>

@@ -89,7 +89,7 @@ export async function fetchPrints(name) {
   const q = encodeURIComponent(`!"${name}" game:paper`);
   const res = await fetch(`https://api.scryfall.com/cards/search?q=${q}&unique=prints&order=released`);
   if (res.status === 404) return []; // nessuna stampa
-  if (!res.ok) throw new Error(`Scryfall ha risposto ${res.status}`);
+  if (!res.ok) throw new Error(`Scryfall responded ${res.status}`);
   const json = await res.json();
   // Per le DFC: scegli la faccia il cui nome combacia con quello cercato (fronte
   // o retro), così cambiando l'art del retro non si prende l'immagine del fronte.
@@ -106,7 +106,7 @@ export async function fetchPrints(name) {
 /** Scarica un'immagine come File (riusa la pipeline esistente). */
 export async function downloadAsFile(url, name) {
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Download immagine fallito (${res.status})`);
+  if (!res.ok) throw new Error(`Image download failed (${res.status})`);
   return new File([await res.blob()], `${sanitizeName(name)}.png`, { type: 'image/png' });
 }
 
@@ -159,7 +159,7 @@ export async function fetchScryfallImages(entries, onProgress) {
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ identifiers: parts[p] }),
     });
-    if (!res.ok) throw new Error(`Scryfall ha risposto ${res.status}`);
+    if (!res.ok) throw new Error(`Scryfall responded ${res.status}`);
     const json = await res.json();
     for (const card of json.data || []) {
       const s = (card.set || '').toLowerCase();
@@ -246,7 +246,7 @@ export function deckLine(qty, name, set, cn) {
 
 async function archidektList(id) {
   const r = await fetch(px(`https://archidekt.com/api/decks/${id}/`));
-  if (!r.ok) throw new Error(`Archidekt ha risposto ${r.status}`);
+  if (!r.ok) throw new Error(`Archidekt responded ${r.status}`);
   const j = await r.json();
   return (j.cards || [])
     .filter((c) => !(c.categories || []).some((cat) => /maybe|sideboard|considering/i.test(cat)))
@@ -257,7 +257,7 @@ async function archidektList(id) {
 
 async function moxfieldList(pubId) {
   const r = await fetch(px(`https://api2.moxfield.com/v3/decks/all/${pubId}`));
-  if (!r.ok) throw new Error(`Moxfield ha risposto ${r.status}`);
+  if (!r.ok) throw new Error(`Moxfield responded ${r.status}`);
   const j = await r.json();
   const out = [];
   const boards = j.boards || {};
@@ -273,7 +273,7 @@ async function moxfieldList(pubId) {
 
 async function tappedoutList(slug) {
   const r = await fetch(px(`https://tappedout.net/mtg-decks/${slug}/?fmt=txt`));
-  if (!r.ok) throw new Error(`Tappedout ha risposto ${r.status}`);
+  if (!r.ok) throw new Error(`Tappedout responded ${r.status}`);
   const txt = await r.text();
   // fmt=txt è già "1 Nome" per riga; tieni solo le righe che iniziano con la quantità.
   return txt.replace(/\r/g, '').split('\n').filter((l) => /^\d+\s/.test(l.trim())).join('\n');
@@ -290,5 +290,5 @@ export async function fetchDeckList(url) {
   if ((m = u.match(/moxfield\.com\/decks\/([\w-]+)/i))) return moxfieldList(m[1]);
   if ((m = u.match(/archidekt\.com\/(?:api\/)?decks\/(\d+)/i))) return archidektList(m[1]);
   if ((m = u.match(/tappedout\.net\/mtg-decks\/([\w-]+)/i))) return tappedoutList(m[1]);
-  throw new Error('Link non riconosciuto. Supportati: Moxfield, Archidekt, Tappedout.');
+  throw new Error('Unrecognized link. Supported: Moxfield, Archidekt, Tappedout.');
 }

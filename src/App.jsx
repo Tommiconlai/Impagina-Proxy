@@ -129,7 +129,7 @@ export default function App() {
     try {
       await generatePDF(images, formatKey, bleedMm, dpi, bleedStyle, cardW, cardH, cropMarks, cropStyle, customSheet);
     } catch (err) {
-      setError(err.message || 'Errore durante la generazione del PDF.');
+      setError(err.message || 'Error generating the PDF.');
     } finally {
       setLoading(false);
     }
@@ -151,7 +151,7 @@ export default function App() {
       <header className="app-header">
         <span className="logo-icon"><IconLayout size={20} /></span>
         <h1>ImpaginaProxies</h1>
-        <span className="tagline">Impagina proxy per la stampa</span>
+        <span className="tagline">Lay out card proxies for printing</span>
       </header>
 
       {/* ── Body ── */}
@@ -195,13 +195,13 @@ export default function App() {
               disabled={images.length === 0 || loading}
             >
               {loading
-                ? <><span className="spinner" /> Generazione…</>
-                : <><IconFile size={18} /> Genera PDF</>
+                ? <><span className="spinner" /> Generating…</>
+                : <><IconFile size={18} /> Generate PDF</>
               }
             </button>
             {images.length > 0 && (
               <button className="btn-secondary" onClick={handleClearAll}>
-                <IconTrash size={15} /> Elimina tutte
+                <IconTrash size={15} /> Delete all
               </button>
             )}
             {error && (

@@ -281,12 +281,12 @@ function compressImage(img, cellWmm, cellHmm, dpi, bleedMm, bleedMode, quality =
  * Genera e scarica il PDF.
  */
 export async function generatePDF(items, formatKey, bleedMm, dpi = 600, bleedStyle = 'auto', cardW = CARD_W, cardH = CARD_H, cropMarks = true, cropStyle = 'lines', customSheet = null) {
-  if (!items || items.length === 0) throw new Error('Nessuna immagine selezionata.');
+  if (!items || items.length === 0) throw new Error('No images selected.');
 
   const { cols, rows, cellW, cellH, pageW, pageH, orientation, offsetX, offsetY } = getGridInfo(formatKey, bleedMm, cardW, cardH, customSheet);
 
   if (cols === 0 || rows === 0) {
-    throw new Error("Il formato carta è troppo piccolo per almeno un'immagine.");
+    throw new Error('The card size is too small for at least one image.');
   }
 
   // jsPDF caricato on-demand: tiene jspdf/html2canvas fuori dal bundle iniziale

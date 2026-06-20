@@ -6,7 +6,8 @@ Context for the next Claude Code session.
 
 Vite + React single-page tool. Load images (card faces) → lay them out on a print
 sheet (A3/A4/A5/Letter/Legal) with bleed + crop marks → export a print-ready PDF.
-UI is in Italian. "Proxies" = trading-card proxies; card size is 63×88 mm.
+UI is in English (visible strings; **code comments stay Italian**). "Proxies" =
+trading-card proxies; card size is 63×88 mm.
 
 ## Stack
 

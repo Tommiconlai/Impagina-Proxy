@@ -297,14 +297,14 @@ export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, dp
                                             cursor: 'pointer',
                                         }}
                                         onClick={() => onChangeArt(img.id)}
-                                        title="Cambia art"
+                                        title="Change art"
                                     >
                                         <button
                                             type="button"
                                             className="preview-card-dup"
                                             onClick={(e) => { e.stopPropagation(); onDuplicate(img.id); }}
-                                            title="Duplica"
-                                            aria-label={`Duplica ${img.file.name}`}
+                                            title="Duplicate"
+                                            aria-label={`Duplicate ${img.file.name}`}
                                         >
                                             <IconCopy size={11} />
                                         </button>
@@ -312,8 +312,8 @@ export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, dp
                                             type="button"
                                             className={`preview-card-bleed${img.bleedMode !== 'none' ? ' on' : ''}`}
                                             onClick={(e) => { e.stopPropagation(); onToggleBleed(img.id); }}
-                                            title={img.bleedMode !== 'none' ? 'Abbondanza attiva — clic per togliere' : 'Genera abbondanza'}
-                                            aria-label="Abbondanza"
+                                            title={img.bleedMode !== 'none' ? 'Bleed on — click to remove' : 'Generate bleed'}
+                                            aria-label="Bleed"
                                             aria-pressed={img.bleedMode !== 'none'}
                                         >
                                             <IconFrame size={11} />
@@ -322,8 +322,8 @@ export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, dp
                                             type="button"
                                             className="preview-card-delete"
                                             onClick={(e) => { e.stopPropagation(); onRemove(img.id); }}
-                                            title="Rimuovi"
-                                            aria-label={`Rimuovi ${img.file.name}`}
+                                            title="Remove"
+                                            aria-label={`Remove ${img.file.name}`}
                                         >
                                             <IconX size={12} />
                                         </button>
@@ -342,20 +342,20 @@ export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, dp
                             className="nav-btn"
                             disabled={!canPrev}
                             onClick={() => setPageOffset(page - 1)}
-                            aria-label="Pagina precedente"
+                            aria-label="Previous page"
                         >‹</button>
                         <span className="nav-info">{page + 1}/{totalPages}</span>
                         <button
                             className="nav-btn"
                             disabled={!canNext}
                             onClick={() => setPageOffset(page + 1)}
-                            aria-label="Pagina successiva"
+                            aria-label="Next page"
                         >›</button>
                     </div>
                 )}
                 {images.length > 0 && (
                     <span className="preview-count">
-                        {images.length} img{missing > 0 ? ` · ${missing} mancanti` : ''}
+                        {images.length} img{missing > 0 ? ` · ${missing} missing` : ''}
                     </span>
                 )}
                 <div className="add-menu-wrap" ref={menuRef}>
@@ -366,14 +366,14 @@ export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, dp
                                 role="menuitem"
                                 onClick={() => { setMenuOpen(false); onAddPhotos(); }}
                             >
-                                <IconImage size={15} /> Carica file
+                                <IconImage size={15} /> Upload files
                             </button>
                             <button
                                 type="button"
                                 role="menuitem"
                                 onClick={() => { setMenuOpen(false); onImportScryfall(); }}
                             >
-                                <IconDownload size={15} /> Importa da Scryfall
+                                <IconDownload size={15} /> Import from Scryfall
                             </button>
                         </div>
                     )}
@@ -383,8 +383,8 @@ export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, dp
                         onClick={() => setMenuOpen((o) => !o)}
                         aria-haspopup="menu"
                         aria-expanded={menuOpen}
-                        title="Aggiungi"
-                        aria-label="Aggiungi"
+                        title="Add"
+                        aria-label="Add"
                     >
                         <IconPlus size={26} />
                     </button>
