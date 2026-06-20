@@ -88,13 +88,14 @@ Tokens at the top of `src/index.css`. Also recorded in this project's Claude mem
   set/collector (`fetchPrints` now also returns `collector`) so the save follows the chosen
   printing. Verified live (2× pinned + 1 DFC → `2 Sol Ring (C21) 263` / `1 Fable of the Mirror-
   Breaker`, DFC counted once); self-check covers grouping + round-trip.
-- **Mirror-bleed seam fix:** some full-art cards showed a thin dark line at
-  the card↔bleed join in `mirror` mode. Cause: the art's outermost pixel column is a dark
-  fringe, and the old code placed the card's col-0 fringe and the mirror band's col-0 fringe
-  *adjacent* at the trim → a doubled ~1px dark line. `drawCardWithBleed` now overlaps each
-  mirror band (4 edges + 4 corners) `ov = 1` px **inward** over the trim, collapsing the two
-  fringes onto one pixel. Measured on the real SLD Exotic Orchard PNG: seam min-luma 154 → 220,
-  isolated dip gone. Stretch/black modes untouched.
+- **Mirror-bleed seam fix:** some full-art cards (bright edges) showed a thin dark line at
+  the card↔bleed join in `mirror`. Cause: the Scryfall PNG's outermost 1-3 px are a darker
+  antialias **fringe**. `drawCardWithBleed` now (a) draws the card from an `inset` (`≈iw/370`,
+  ~2 px) so the trim edge samples real art, not the fringe, and (b) samples every mirror/stretch
+  band from the same inset so the join pixel matches — plus the earlier `ov = 1` px inward
+  overlap to hide the AA hairline. Measured on the real SLD Exotic Orchard PNG: seam dip went
+  ~35% → ~5% (gone); dark-edged cards (SPG Verdant Catacombs) stay flat. `black` mode only gets
+  the cleaner inset trim edge.
 - **UI translated to English:** all visible strings (sidebar, preview, both modals, errors,
   `index.html`); code comments stay Italian. Verified live.
 - **Deck-link import pins the deck's edition:** `moxfieldList`/`archidektList`

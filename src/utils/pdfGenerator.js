@@ -185,8 +185,15 @@ export function drawCardWithBleed(ctx, img, x, y, cellW, cellH, bleedPx, mode = 
   const ih = img.naturalHeight || img.height;
   if (tw <= 0 || th <= 0 || !iw || !ih) return;
 
-  // Carta a misura di taglio (aspect carta ≈ trim → nessuna distorsione visibile)
-  ctx.drawImage(img, 0, 0, iw, ih, tx, ty, tw, th);
+  // ponytail: scarta la frangia esterna del PNG (1-3 px di antialias, più scura) dal
+  // trim E dalle fasce. Su full-art chiare lasciava una riga scura sul taglio (mirror/
+  // stretch); su bordi scuri si confondeva. Inset in px sorgente (~2 su 745).
+  const inset = Math.min(3, Math.max(1, Math.round(iw / 370)));
+  const sw0 = iw - 2 * inset;
+  const sh0 = ih - 2 * inset;
+
+  // Carta a misura di taglio (frangia esterna esclusa; aspect ≈ trim)
+  ctx.drawImage(img, inset, inset, sw0, sh0, tx, ty, tw, th);
   if (b <= 0) return;
 
   if (mode === 'black') {
@@ -200,36 +207,34 @@ export function drawCardWithBleed(ctx, img, x, y, cellW, cellH, bleedPx, mode = 
   }
 
   if (mode === 'mirror') {
-    // Larghezza/altezza (in px sorgente) della fascia da specchiare
-    const bsw = Math.max(1, Math.min(iw, Math.round((b * iw) / tw)));
-    const bsh = Math.max(1, Math.min(ih, Math.round((b * ih) / th)));
-    // ponytail: le fasce specchiate sconfinano di ov px DENTRO il trim per coprire
-    // la cucitura (a coord. frazionarie l'AA lasciava trasparire la riga nera dello
-    // sfondo tra carta e bleed). Sul bordo lo specchio ≈ pixel originale → invisibile.
+    // Larghezza/altezza (px sorgente) della fascia da specchiare (dentro l'inset)
+    const bsw = Math.max(1, Math.min(sw0, Math.round((b * sw0) / tw)));
+    const bsh = Math.max(1, Math.min(sh0, Math.round((b * sh0) / th)));
+    // Sconfina ov px DENTRO il trim per fondere il giunto (copre la cucitura AA).
     const ov = 1;
-    // Bordi
-    blit(ctx, img, 0, 0, iw, bsh, tx, ty - b, tw, b + ov, false, true);              // alto
-    blit(ctx, img, 0, ih - bsh, iw, bsh, tx, ty + th - ov, tw, b + ov, false, true); // basso
-    blit(ctx, img, 0, 0, bsw, ih, tx - b, ty, b + ov, th, true, false);              // sinistra
-    blit(ctx, img, iw - bsw, 0, bsw, ih, tx + tw - ov, ty, b + ov, th, true, false); // destra
+    // Bordi — sorgente da `inset`: il pixel al giunto è arte piena, non la frangia
+    blit(ctx, img, inset, inset, sw0, bsh, tx, ty - b, tw, b + ov, false, true);                  // alto
+    blit(ctx, img, inset, ih - inset - bsh, sw0, bsh, tx, ty + th - ov, tw, b + ov, false, true); // basso
+    blit(ctx, img, inset, inset, bsw, sh0, tx - b, ty, b + ov, th, true, false);                  // sinistra
+    blit(ctx, img, iw - inset - bsw, inset, bsw, sh0, tx + tw - ov, ty, b + ov, th, true, false); // destra
     // Angoli (sovrapposti di ov in entrambe le direzioni)
-    blit(ctx, img, 0, 0, bsw, bsh, tx - b, ty - b, b + ov, b + ov, true, true);                       // alto-sx
-    blit(ctx, img, iw - bsw, 0, bsw, bsh, tx + tw - ov, ty - b, b + ov, b + ov, true, true);          // alto-dx
-    blit(ctx, img, 0, ih - bsh, bsw, bsh, tx - b, ty + th - ov, b + ov, b + ov, true, true);          // basso-sx
-    blit(ctx, img, iw - bsw, ih - bsh, bsw, bsh, tx + tw - ov, ty + th - ov, b + ov, b + ov, true, true); // basso-dx
+    blit(ctx, img, inset, inset, bsw, bsh, tx - b, ty - b, b + ov, b + ov, true, true);                                  // alto-sx
+    blit(ctx, img, iw - inset - bsw, inset, bsw, bsh, tx + tw - ov, ty - b, b + ov, b + ov, true, true);                 // alto-dx
+    blit(ctx, img, inset, ih - inset - bsh, bsw, bsh, tx - b, ty + th - ov, b + ov, b + ov, true, true);                 // basso-sx
+    blit(ctx, img, iw - inset - bsw, ih - inset - bsh, bsw, bsh, tx + tw - ov, ty + th - ov, b + ov, b + ov, true, true);// basso-dx
     return;
   }
 
-  // edge-stretch: riga/colonna esterna stirata nell'abbondanza
-  ctx.drawImage(img, 0, 0, iw, 1, tx, ty - b, tw, b);          // alto
-  ctx.drawImage(img, 0, ih - 1, iw, 1, tx, ty + th, tw, b);    // basso
-  ctx.drawImage(img, 0, 0, 1, ih, tx - b, ty, b, th);          // sinistra
-  ctx.drawImage(img, iw - 1, 0, 1, ih, tx + tw, ty, b, th);    // destra
-  // Angoli: pixel d'angolo replicato
-  ctx.drawImage(img, 0, 0, 1, 1, tx - b, ty - b, b, b);             // alto-sx
-  ctx.drawImage(img, iw - 1, 0, 1, 1, tx + tw, ty - b, b, b);       // alto-dx
-  ctx.drawImage(img, 0, ih - 1, 1, 1, tx - b, ty + th, b, b);       // basso-sx
-  ctx.drawImage(img, iw - 1, ih - 1, 1, 1, tx + tw, ty + th, b, b); // basso-dx
+  // edge-stretch: riga/colonna appena DENTRO la frangia, stirata nell'abbondanza
+  ctx.drawImage(img, inset, inset, sw0, 1, tx, ty - b, tw, b);            // alto
+  ctx.drawImage(img, inset, ih - inset - 1, sw0, 1, tx, ty + th, tw, b);  // basso
+  ctx.drawImage(img, inset, inset, 1, sh0, tx - b, ty, b, th);            // sinistra
+  ctx.drawImage(img, iw - inset - 1, inset, 1, sh0, tx + tw, ty, b, th);  // destra
+  // Angoli: pixel d'angolo (interno alla frangia) replicato
+  ctx.drawImage(img, inset, inset, 1, 1, tx - b, ty - b, b, b);                     // alto-sx
+  ctx.drawImage(img, iw - inset - 1, inset, 1, 1, tx + tw, ty - b, b, b);           // alto-dx
+  ctx.drawImage(img, inset, ih - inset - 1, 1, 1, tx - b, ty + th, b, b);           // basso-sx
+  ctx.drawImage(img, iw - inset - 1, ih - inset - 1, 1, 1, tx + tw, ty + th, b, b); // basso-dx
 }
 
 /**
