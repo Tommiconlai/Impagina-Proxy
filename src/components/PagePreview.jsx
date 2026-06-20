@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useMemo } from 'react';
 import { getGridInfo, CARD_W, CARD_H, cropMarkSpan, drawCardWithBleed, resolveBleedMode } from '../utils/pdfGenerator';
-import { IconX, IconPlus, IconImage, IconDownload } from './icons';
+import { IconX, IconPlus, IconImage, IconDownload, IconCopy, IconFrame } from './icons';
 
 // ── Carica un'immagine come HTMLImageElement (async) ─────────
 function loadImage(src) {
@@ -57,7 +57,7 @@ function drawCropMarksCanvas(ctx, cellX, cellY, bleedPx, cardWpx, cardHpx, scale
 }
 
 // ── Singola pagina canvas ─────────────────────────────────────
-export function PageCanvas({ pageImages, formatKey, bleedMm, bleedStyle, previewW, empty }) {
+export function PageCanvas({ pageImages, formatKey, bleedMm, bleedStyle, dpi, previewW, empty }) {
     const canvasRef = useRef();
     // Cache src(objectURL) -> HTMLImageElement decodificata: evita di ri-decodificare
     // le immagini a ogni ridisegno (cancellazione carta, resize, cambio pagina/formato).
@@ -118,6 +118,27 @@ export function PageCanvas({ pageImages, formatKey, bleedMm, bleedStyle, preview
                     } else {
                         ctx.drawImage(imgs[i], x, y, w, h);
                     }
+                    // Avviso bassa risoluzione: la sorgente non copre metà dei px
+                    // richiesti al DPI scelto → stampa sgranata. ponytail: soglia
+                    // 0.5× fissa; le PNG Scryfall (~300 DPI a misura carta) non avvisano
+                    // fino a >600 DPI. Marker triangolo rosso nell'angolo del trim.
+                    const effDpi = imgs[i].naturalWidth / (CARD_W / 25.4);
+                    if (effDpi < dpi * 0.5) {
+                        const s = Math.max(9, 15 * scale);
+                        const mx = x + bleedPx;
+                        const my = y + bleedPx;
+                        ctx.fillStyle = '#ef4444';
+                        ctx.beginPath();
+                        ctx.moveTo(mx, my);
+                        ctx.lineTo(mx + s, my);
+                        ctx.lineTo(mx, my + s);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.fillStyle = '#fff';
+                        ctx.font = `bold ${Math.round(s * 0.55)}px sans-serif`;
+                        ctx.textBaseline = 'top';
+                        ctx.fillText('!', mx + s * 0.1, my + s * 0.02);
+                    }
                 } else {
                     ctx.fillStyle = empty ? '#f0f0f0' : '#d0d0d0';
                     ctx.fillRect(x + bleedPx, y + bleedPx, cardWpx, cardHpx);
@@ -146,7 +167,7 @@ export function PageCanvas({ pageImages, formatKey, bleedMm, bleedStyle, preview
 
         draw();
         return () => { cancelled = true; };
-    }, [pageImages, formatKey, bleedMm, bleedStyle, previewW, empty, info, scale, previewH]);
+    }, [pageImages, formatKey, bleedMm, bleedStyle, dpi, previewW, empty, info, scale, previewH]);
 
     return (
         <canvas
@@ -157,7 +178,7 @@ export function PageCanvas({ pageImages, formatKey, bleedMm, bleedStyle, preview
 }
 
 // ── Componente principale ─────────────────────────────────────
-export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, onRemove, onChangeArt, onAddPhotos, onImportScryfall, isDragActive, missing }) {
+export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, dpi, onRemove, onChangeArt, onToggleBleed, onDuplicate, onAddPhotos, onImportScryfall, isDragActive, missing }) {
     const [pageOffset, setPageOffset] = useState(0);
     const [box, setBox] = useState({ w: 0, h: 0 });
     const [menuOpen, setMenuOpen] = useState(false);
@@ -234,6 +255,7 @@ export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, on
                         formatKey={formatKey}
                         bleedMm={bleedMm}
                         bleedStyle={bleedStyle}
+                        dpi={dpi}
                         previewW={pageW}
                         empty={images.length === 0}
                     />
@@ -260,6 +282,25 @@ export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, on
                                         onClick={() => onChangeArt(img.id)}
                                         title="Cambia art"
                                     >
+                                        <button
+                                            type="button"
+                                            className="preview-card-dup"
+                                            onClick={(e) => { e.stopPropagation(); onDuplicate(img.id); }}
+                                            title="Duplica"
+                                            aria-label={`Duplica ${img.file.name}`}
+                                        >
+                                            <IconCopy size={11} />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={`preview-card-bleed${img.bleedMode !== 'none' ? ' on' : ''}`}
+                                            onClick={(e) => { e.stopPropagation(); onToggleBleed(img.id); }}
+                                            title={img.bleedMode !== 'none' ? 'Abbondanza attiva — clic per togliere' : 'Genera abbondanza'}
+                                            aria-label="Abbondanza"
+                                            aria-pressed={img.bleedMode !== 'none'}
+                                        >
+                                            <IconFrame size={11} />
+                                        </button>
                                         <button
                                             type="button"
                                             className="preview-card-delete"

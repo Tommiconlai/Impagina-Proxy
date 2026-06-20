@@ -3,7 +3,7 @@ import { parseCardList, fetchScryfallImages } from '../utils/scryfall';
 import { IconX } from './icons';
 
 export default function ScryfallImportModal({ open, onClose, onImport }) {
-    const [text, setText] = useState('');
+    const [text, setText] = useState(() => localStorage.getItem('ip:cardlist') || ''); // sopravvive al reload
     const [busy, setBusy] = useState(false);
     const [progress, setProgress] = useState({ done: 0, total: 0 });
     const [result, setResult] = useState(null); // { imported, notFound }
@@ -45,13 +45,14 @@ export default function ScryfallImportModal({ open, onClose, onImport }) {
                 </div>
 
                 <p className="modal-hint">
-                    Una carta per riga, formato <code>1x Nome Carta</code>. Le doppia-faccia importano fronte e retro.
+                    Una carta per riga, formato <code>1x Nome Carta</code>. Aggiungi <code>(SET) num</code> per
+                    scegliere la stampa (es. <code>1x Sol Ring (C21) 263</code>). Le doppia-faccia importano fronte e retro.
                 </p>
 
                 <textarea
                     className="import-textarea"
                     value={text}
-                    onChange={(e) => { setText(e.target.value); if (result) setResult(null); }}
+                    onChange={(e) => { setText(e.target.value); localStorage.setItem('ip:cardlist', e.target.value); if (result) setResult(null); }}
                     placeholder={'1x Sol Ring\n2x Brainstorm\n1x Fable of the Mirror-Breaker'}
                     rows={10}
                     disabled={busy}

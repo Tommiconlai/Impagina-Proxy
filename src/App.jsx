@@ -5,22 +5,40 @@ import PageSettings from './components/PageSettings';
 import PagePreview from './components/PagePreview';
 import ScryfallImportModal from './components/ScryfallImportModal';
 import ArtPickerModal from './components/ArtPickerModal';
-import { generatePDF, getGridInfo } from './utils/pdfGenerator';
+import { generatePDF, getGridInfo, PAPER_FORMATS } from './utils/pdfGenerator';
 import { downloadAsFile } from './utils/scryfall';
 import { IconFile, IconAlert, IconLayout, IconTrash } from './components/icons';
 
+// Lettura numerica da localStorage con default (null/NaN → default, 0 valido).
+const readNum = (k, d) => {
+  const s = localStorage.getItem(k);
+  const v = Number(s);
+  return s !== null && Number.isFinite(v) ? v : d;
+};
+
 export default function App() {
   const [images, setImages] = useState([]);
-  const [formatKey, setFormatKey] = useState('A3');
-  const [bleedMm, setBleedMm] = useState(2);
-  const [bleedStyle, setBleedStyle] = useState('auto'); // auto | mirror | stretch | black
-  const [dpi, setDpi] = useState(600);
+  const [formatKey, setFormatKey] = useState(() => {
+    const s = localStorage.getItem('ip:format');
+    return s && PAPER_FORMATS[s] ? s : 'A3';
+  });
+  const [bleedMm, setBleedMm] = useState(() => readNum('ip:bleed', 2));
+  const [bleedStyle, setBleedStyle] = useState(() => localStorage.getItem('ip:bleedStyle') || 'auto'); // auto | mirror | stretch | black
+  const [dpi, setDpi] = useState(() => readNum('ip:dpi', 600));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
   const [editingId, setEditingId] = useState(null); // carta di cui cambiare l'art
   const { perPage } = getGridInfo(formatKey, bleedMm);
   const editing = editingId ? images.find(i => i.id === editingId) : null;
+
+  // Persiste i settaggi (non le immagini: sono blob, si re-importano in 1 click).
+  useEffect(() => {
+    localStorage.setItem('ip:format', formatKey);
+    localStorage.setItem('ip:bleed', String(bleedMm));
+    localStorage.setItem('ip:bleedStyle', bleedStyle);
+    localStorage.setItem('ip:dpi', String(dpi));
+  }, [formatKey, bleedMm, bleedStyle, dpi]);
 
   // Revoca gli object URL residui allo smontaggio (evita leak di memoria).
   // imagesRef tiene il riferimento aggiornato senza ri-registrare l'effect.
@@ -57,6 +75,21 @@ export default function App() {
     images.forEach(i => URL.revokeObjectURL(i.preview));
     setImages([]);
   };
+
+  // Abbondanza on/off per carta: none ↔ stretch. Lo stile globale può poi forzare
+  // mirror/black sulle carte che hanno abbondanza. Utile sugli upload manuali.
+  const handleToggleBleed = (id) => setImages(prev => prev.map(it =>
+    it.id === id ? { ...it, bleedMode: it.bleedMode === 'none' ? 'stretch' : 'none' } : it,
+  ));
+
+  // Duplica una carta (preview con object URL nuovo, inserita dopo l'originale).
+  const handleDuplicate = (id) => setImages(prev => {
+    const idx = prev.findIndex(i => i.id === id);
+    if (idx === -1) return prev;
+    const it = prev[idx];
+    const dup = { ...it, id: `${it.file.name}-${Date.now()}-${Math.random()}`, preview: URL.createObjectURL(it.file) };
+    return [...prev.slice(0, idx + 1), dup, ...prev.slice(idx + 1)];
+  });
 
   // Cambia art: scarica la stampa scelta e sostituisce file+preview (id/bleedMode invariati).
   const handleReplaceArt = async (png, name) => {
@@ -150,8 +183,11 @@ export default function App() {
             formatKey={formatKey}
             bleedMm={bleedMm}
             bleedStyle={bleedStyle}
+            dpi={dpi}
             onRemove={handleRemove}
             onChangeArt={setEditingId}
+            onToggleBleed={handleToggleBleed}
+            onDuplicate={handleDuplicate}
             onAddPhotos={open}
             onImportScryfall={() => setImportOpen(true)}
             isDragActive={isDragActive}

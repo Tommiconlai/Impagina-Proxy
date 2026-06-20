@@ -27,8 +27,8 @@ function sanitizeName(name) {
  * Parsa il testo incollato. Una carta per riga.
  * Accetta "1x Nome", "1 Nome", "Nome". Quantità limitata a 3 cifre per non
  * confondere carte che iniziano con un numero (es. "1996 World Champion").
- * Rimuove eventuale coda set/collector tipo "(C21) 263 *F*".
- * @returns {{qty:number, name:string}[]}
+ * Coda opzionale "(SET) [collector]" (es. "(C21) 263 *F*") → pinna la stampa.
+ * @returns {{qty:number, name:string, set:string, collector:string}[]}
  */
 export function parseCardList(text) {
   const out = [];
@@ -43,8 +43,18 @@ export function parseCardList(text) {
       qty = parseInt(m[1], 10) || 1;
       name = m[2];
     }
-    name = name.trim().replace(/\s+\([0-9A-Za-z]{2,6}\)(?:\s+\S+)*$/, '').trim();
-    if (name) out.push({ qty, name });
+    // Coda set/collector: set = 2-6 alfanumerici tra parentesi, collector = primo
+    // token dopo. Il resto (marcatore foil ecc.) si scarta. Assente → import per nome.
+    let set = '';
+    let collector = '';
+    const tail = name.match(/\s+\(([0-9A-Za-z]{2,6})\)(?:\s+([0-9A-Za-z★-]+))?.*$/);
+    if (tail) {
+      set = tail[1].toLowerCase();
+      collector = (tail[2] || '').toLowerCase();
+      name = name.slice(0, tail.index);
+    }
+    name = name.trim();
+    if (name) out.push({ qty, name, set, collector });
   }
   return out;
 }
@@ -107,26 +117,33 @@ async function mapLimit(items, limit, fn) {
 
 /**
  * Scarica le immagini delle carte richieste.
- * @param {{qty:number, name:string}[]} entries
+ * @param {{qty:number, name:string, set?:string, collector?:string}[]} entries
  * @param {(done:number, total:number)=>void} [onProgress]
  * @returns {Promise<{files: {file: File, bleedMode: string}[], notFound: string[]}>}
  */
 export async function fetchScryfallImages(entries, onProgress) {
-  // Aggrega le quantità per nome, preservando l'ordine di inserimento.
-  const byName = new Map();
-  for (const { qty, name } of entries) {
-    if (!name) continue;
-    const key = name.toLowerCase();
-    if (byName.has(key)) byName.get(key).qty += qty || 1;
-    else byName.set(key, { name, qty: qty || 1 });
+  // Aggrega le quantità per (nome|set|collector), preservando l'ordine.
+  const byKey = new Map();
+  for (const e of entries) {
+    if (!e.name) continue;
+    const set = e.set || '';
+    const collector = e.collector || '';
+    const key = `${e.name.toLowerCase()}|${set}|${collector}`;
+    if (byKey.has(key)) byKey.get(key).qty += e.qty || 1;
+    else byKey.set(key, { name: e.name, set, collector, qty: e.qty || 1 });
   }
-  const list = [...byName.values()];
+  const list = [...byKey.values()];
   if (!list.length) return { files: [], notFound: [] };
 
-  // 1) Risolvi le carte via /cards/collection (batch da 75).
-  const identifiers = list.map((e) => ({ name: e.name }));
-  const cardByKey = new Map(); // nome(lower) [+ nome faccia anteriore] -> card
-  const notFound = [];
+  // 1) Risolvi via /cards/collection (batch da 75). Identifier più preciso:
+  //    set+collector → stampa esatta; solo set → nome in quel set; altrimenti nome.
+  const identifiers = list.map((e) =>
+    e.set && e.collector ? { set: e.set, collector_number: e.collector }
+      : e.set ? { name: e.name, set: e.set }
+        : { name: e.name },
+  );
+  const cardByKey = new Map(); // "nome|set|collector" (e varianti) -> card
+  const reg = (k, card) => { if (!cardByKey.has(k)) cardByKey.set(k, card); };
   const parts = chunk(identifiers, CHUNK);
   for (let p = 0; p < parts.length; p++) {
     const res = await fetch(COLLECTION_URL, {
@@ -137,23 +154,36 @@ export async function fetchScryfallImages(entries, onProgress) {
     if (!res.ok) throw new Error(`Scryfall ha risposto ${res.status}`);
     const json = await res.json();
     for (const card of json.data || []) {
-      cardByKey.set(card.name.toLowerCase(), card);
-      const front = card.card_faces?.[0]?.name;
-      if (front) cardByKey.set(front.toLowerCase(), card); // match nome faccia (DFC)
+      const s = (card.set || '').toLowerCase();
+      const c = (card.collector_number || '').toLowerCase();
+      // Registra sotto ogni chiave con cui potremmo cercarla (nome + faccia DFC).
+      for (const n of [card.name, card.card_faces?.[0]?.name].filter(Boolean)) {
+        const nl = n.toLowerCase();
+        reg(`${nl}||`, card);
+        reg(`${nl}|${s}|`, card);
+        reg(`${nl}|${s}|${c}`, card);
+      }
     }
-    for (const nf of json.not_found || []) notFound.push(nf.name);
     if (p < parts.length - 1) await sleep(100); // gentile con l'API
   }
 
-  // 2) Costruisci i task immagine nell'ordine della lista.
+  // 2) Costruisci i task immagine nell'ordine della lista; raccogli i mancanti.
+  const notFound = [];
   const tasks = []; // { url, name, qty, bleedMode }
-  for (const entry of list) {
-    const card = cardByKey.get(entry.name.toLowerCase());
-    if (!card) continue; // già in notFound
+  for (const e of list) {
+    const nl = e.name.toLowerCase();
+    const card =
+      cardByKey.get(`${nl}|${e.set}|${e.collector}`) ||
+      cardByKey.get(`${nl}|${e.set}|`) ||
+      cardByKey.get(`${nl}||`);
+    if (!card) {
+      notFound.push(e.set ? `${e.name} (${e.set.toUpperCase()})` : e.name);
+      continue;
+    }
     // full-art / borderless → mirror; altrimenti edge-stretch (bordo nero)
     const bleedMode = card.full_art || card.border_color === 'borderless' ? 'mirror' : 'stretch';
     for (const face of imageFaces(card)) {
-      tasks.push({ url: face.url, name: face.name, qty: entry.qty, bleedMode });
+      tasks.push({ url: face.url, name: face.name, qty: e.qty, bleedMode });
     }
   }
 
