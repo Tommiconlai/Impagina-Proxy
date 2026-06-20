@@ -291,6 +291,7 @@ input[type="number"]:focus {
 
 .card-size-custom label {
   flex: 1;
+  min-width: 0; /* permette al flex item di restringersi sotto la min-content (no overflow) */
   display: flex;
   align-items: center;
   gap: 6px;
