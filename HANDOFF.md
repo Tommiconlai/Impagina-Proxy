@@ -70,7 +70,10 @@ Tokens at the top of `src/index.css`. Also recorded in this project's Claude mem
 
 ## Done recently
 
-- **Sidebar redesign (most recent — from a design critique):**
+- **Animated "Mostra crocini" checkbox (most recent):** native input hidden-but-focusable +
+  an SVG (`.anim-check`) that morphs a circle into a checkmark on `:checked` (adapted Uiverse
+  snippet — green swapped for the gold `--accent`, light ripple/base for the dark theme).
+- **Sidebar redesign (from a design critique):**
   - *Fixed export footer:* `.app` is now `height: 100dvh` (was `min-height`), so the sidebar
     splits into a scrolling `.sidebar-scroll` (the settings) + a non-scrolling `.sidebar-export`
     footer. **Genera PDF is always visible** — before it sat below the fold. (Sticky-bottom was
