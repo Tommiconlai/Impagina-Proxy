@@ -110,6 +110,10 @@ export function PageCanvas({ pageImages, formatKey, bleedMm, bleedStyle, preview
                 if (!empty && imgs[i]) {
                     const mode = resolveBleedMode(pageImages[i]?.bleedMode, bleedStyle);
                     if (mode !== 'none') {
+                        // Sfondo nero dietro la carta: gli angoli arrotondati
+                        // trasparenti dei PNG non lasciano tacche bianche.
+                        ctx.fillStyle = '#000000';
+                        ctx.fillRect(x, y, w, h);
                         drawCardWithBleed(ctx, imgs[i], x, y, w, h, bleedPx, mode);
                     } else {
                         ctx.drawImage(imgs[i], x, y, w, h);

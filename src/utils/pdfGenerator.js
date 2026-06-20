@@ -240,12 +240,17 @@ function compressImage(img, cellWmm, cellHmm, dpi, bleedMm, bleedMode, quality =
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, w, h);
 
   if (bleedMode && bleedMode !== 'none') {
+    // Sfondo nero dietro la carta: i PNG Scryfall hanno angoli arrotondati
+    // trasparenti — su bianco lascerebbero tacche bianche negli angoli (trim e
+    // abbondanza). Nero = standard di stampa, si fonde coi bordi neri/full-art.
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, w, h);
     drawCardWithBleed(ctx, img, 0, 0, w, h, Math.round(bleedMm * mmToPx), bleedMode);
   } else {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, w, h);
     // object-fit: cover (immagini caricate a mano)
     const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
     const sw = img.naturalWidth * scale;
