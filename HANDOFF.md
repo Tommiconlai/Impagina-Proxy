@@ -25,9 +25,10 @@ npm run lint
 
 **Deploy:** GitHub Pages via Actions (`.github/workflows/deploy.yml`: `npm ci` + build →
 `deploy-pages`). Repo Settings → Pages → Source must be **"GitHub Actions"** (not branch).
-`vite.config.js` sets `base: './'` so assets resolve under the `/Impagina-Proxy/` subpath —
+`vite.config.js` sets `base: './'` so assets resolve under the `/Proxoteca/` subpath —
 keep it relative (don't hardcode the repo name). Live at
-`https://tommiconlai.github.io/Impagina-Proxy/`.
+`https://tommiconlai.github.io/Proxoteca/`. (Repo was renamed `Impagina-Proxy` → `Proxoteca`
+on 2026-06-21; the old Pages URL 404s. Relative `base` meant no rebuild was needed.)
 
 Preview via Claude Code: `preview_start "vite-dev"` (config in `.claude/launch.json`,
 which is gitignored and auto-created if missing). Screenshot empty AND populated states.
