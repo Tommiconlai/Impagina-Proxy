@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useMemo } from 'react';
-import { getGridInfo, cropMarkSpan, drawCardWithBleed, resolveBleedMode } from '../utils/pdfGenerator';
+import { getGridInfo, cropMarkSpan, drawCardWithBleed, resolveBleedMode, bleedLabel } from '../utils/pdfGenerator';
 import { IconX, IconCopy, IconFrame } from './icons';
 
 // ── Carica un'immagine come HTMLImageElement (async) ─────────
@@ -303,8 +303,8 @@ export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, dp
                                             type="button"
                                             className={`preview-card-bleed${img.bleedMode !== 'none' ? ' on' : ''}`}
                                             onClick={(e) => { e.stopPropagation(); onToggleBleed(img.id); }}
-                                            title={img.bleedMode !== 'none' ? 'Bleed on — click to remove' : 'Generate bleed'}
-                                            aria-label="Bleed"
+                                            title={`Bleed: ${bleedLabel(img.bleedMode)} (click to change)`}
+                                            aria-label={`Bleed: ${bleedLabel(img.bleedMode)}`}
                                             aria-pressed={img.bleedMode !== 'none'}
                                         >
                                             <IconFrame size={11} />

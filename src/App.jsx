@@ -9,7 +9,7 @@ import ArtPickerModal from './components/ArtPickerModal';
 import CookieBanner from './components/CookieBanner';
 import MobileLayout from './components/MobileLayout';
 import { useIsMobile } from './hooks/useIsMobile';
-import { generatePDF, getGridInfo, PAPER_FORMATS } from './utils/pdfGenerator';
+import { generatePDF, getGridInfo, PAPER_FORMATS, nextBleedMode } from './utils/pdfGenerator';
 import { buildDeckList } from './utils/scryfall';
 import { IconFile, IconAlert, IconTrash, IconDownload, IconImage, IconPlus, Logo } from './components/icons';
 
@@ -125,14 +125,12 @@ export default function App() {
 
   // Abbondanza on/off per carta: none ↔ stretch. Lo stile globale può poi forzare
   // mirror/black sulle carte che hanno abbondanza. Utile sugli upload manuali.
-  const handleToggleBleed = (id) => setImages(prev => prev.map(it => {
-    if (it.id !== id) return it;
-    // 'full' = art MPC già al vivo: spegnendola ricorda l'origine, così riaccendendo
-    // torna a 'full' (non 'stretch', che rovinerebbe un'immagine già con abbondanza).
-    if (it.bleedMode === 'full') return { ...it, bleedMode: 'none', _wasFull: true };
-    if (it.bleedMode === 'none' && it._wasFull) return { ...it, bleedMode: 'full' };
-    return { ...it, bleedMode: it.bleedMode === 'none' ? 'stretch' : 'none' };
-  }));
+  // Cambia il modo abbondanza per-carta dopo l'upload, ciclando i 3 stati:
+  // none → stretch (genera) → full (già nell'art) → none. Permette di marcare/
+  // smarcare una carta come "già con abbondanza" anche se caricata diversamente.
+  const handleToggleBleed = (id) => setImages(prev => prev.map(it =>
+    it.id === id ? { ...it, bleedMode: nextBleedMode(it.bleedMode) } : it,
+  ));
 
   // Duplica una carta (preview con object URL nuovo, inserita dopo l'originale).
   const handleDuplicate = (id) => setImages(prev => {

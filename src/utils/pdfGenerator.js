@@ -156,6 +156,18 @@ function blit(ctx, img, sx, sy, sw, sh, dx, dy, dw, dh, flipX, flipY) {
  * - style mirror/stretch/black → forza lo stile, ma SOLO sulle carte che hanno
  *   già abbondanza; gli upload manuali ('none') restano cover (no distorsione).
  */
+// Etichetta leggibile del modo abbondanza per-carta (UI hover/action sheet).
+export const bleedLabel = (m) => ({
+  none: 'No bleed',
+  stretch: 'Generated bleed',
+  mirror: 'Mirror bleed',
+  full: 'Bleed in art',
+}[m] || 'Bleed');
+
+// Ciclo del toggle per-carta: niente → genera → già nell'art → niente.
+// (mirror, assegnato da Scryfall/stile globale, è trattato come "generato" → full.)
+export const nextBleedMode = (m) => (m === 'none' ? 'stretch' : m === 'full' ? 'none' : 'full');
+
 export function resolveBleedMode(itemMode, style) {
   const m = itemMode || 'none';
   // 'full' = immagine già con abbondanza (MPCFill): riempie la cella, mai sovrascritto
