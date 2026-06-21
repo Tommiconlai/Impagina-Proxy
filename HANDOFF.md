@@ -48,6 +48,10 @@ before restarting.
 | `src/components/PagePreview.jsx` | Preview: one large centered page (`PageCanvas`) + per-card hover overlay (click = change art; buttons: duplicate, bleed on/off, delete). `PageCanvas` draws cards + bleed + crop marks + a **low-res warning** triangle (source < ½ the px the chosen DPI needs). Footer: pager + count (the add "+" menu moved to the sidebar export footer) |
 | `src/components/ScryfallImportModal.jsx` | Modal: paste a card list **or a deck link** (URL field + "Carica" → `fetchDeckList` fills the textarea) → fetch from Scryfall → add to images. Pasted text persisted to `localStorage` (`ip:cardlist`). Accepts `(SET) collector` to pin a printing |
 | `src/components/ArtPickerModal.jsx` | Click a placed card → lists all Scryfall printings (`fetchPrints`, `/cards/search?unique=prints`) → pick one → `downloadAsFile` swaps `file`+`preview` (id/bleedMode kept). Card name is derived from the **filename**; `fetchPrints` picks the printing face whose name matches it, so DFC backs get back-face prints |
+| `src/hooks/useIsMobile.js` | `matchMedia('(max-width: 768px)')` via `useSyncExternalStore` → boolean. App renders the desktop tree above 768px, `MobileLayout` at/below |
+| `src/components/MobileLayout.jsx` | Mobile shell (≤768px): compact header (Logo + `?` tap-tooltip), three bottom tabs via `BottomTabBar` — **Cards** (`PageCanvas` preview + ＋ FAB → add bottom-sheet; `onCardTap` → `CardActionSheet`), **Settings** (reuses `PageSettings`), **Export** (count/missing + low-res warn + Generate/Save/Delete). Presentational only; consumes `settingsProps`/`previewProps`/`actions`/`addMenu` bundles from `App`. Local state: tab, addOpen, sel, helpOpen |
+| `src/components/BottomTabBar.jsx` | 3-tab nav (Cards/Settings/Export); reuses `IconLayout`/`IconFile` + an inline sliders icon |
+| `src/components/CardActionSheet.jsx` | Mobile bottom sheet for a tapped card: Change art · Duplicate · Bleed on/off · Remove (wired to the App handlers) |
 | `src/utils/pdfGenerator.js` | Grid math (`getGridInfo(formatKey, bleedMm, cardW=63, cardH=88, customSheet=null)`; `formatKey==='custom'` uses `customSheet` mm dims, else `PAPER_FORMATS`) + `generatePDF(items, formatKey, bleedMm, dpi, bleedStyle, cardW, cardH, cropMarks, cropStyle, customSheet)` (jspdf, dynamically imported) + `drawCardWithBleed` (stretch/mirror/black bleed) + `resolveBleedMode` (per-card mode × global style) + `drawCropMarks(…, style)` (`lines`/`corners`) + `cropMarkSpan` (clamped crop marks) |
 | `src/utils/scryfall.js` | `parseCardList` (text → `{qty,name,set,collector}`; collector keeps **original case** — Scryfall `/cards/collection` is case-sensitive on it, e.g. The List `TMP-294`) + `fetchScryfallImages` (`/cards/collection` batched, printing-pinned via name\|set\|collector keys, downloads PNGs as `File`; DFC → both faces) + `fetchPrints` + `downloadAsFile` + `fetchDeckList` (deck link → text, via `corsproxy.io`) + `deckLine(qty,name,set,cn)` (builds `qty Name (SET) cn` so deck links pin the **edition chosen in the deck**) + `buildDeckList(items)` (placed cards → deck-list text for "Save list"; front faces only, custom uploads excluded) |
 | `src/utils/scryfall.selfcheck.js` | `node`-runnable assert check for `parseCardList` (no framework). Run: `node src/utils/scryfall.selfcheck.js` |
@@ -78,7 +82,17 @@ Tokens at the top of `src/index.css`. Also recorded in this project's Claude mem
 
 ## Done recently
 
-- **Save project / deck list (most recent):** sidebar "Save list" button → downloads a `.txt`
+- **Mobile UX — bottom-tab shell (most recent):** at `≤768px` (`useIsMobile`), `App` renders
+  `MobileLayout` instead of the desktop sidebar/preview; all state + handlers stay in `App` and
+  flow through `settingsProps`/`previewProps`/`actions`/`addMenu` bundles (shared by both layouts,
+  DRY). Three bottom tabs: **Cards** (`PageCanvas` preview + ＋ FAB → add bottom-sheet; tap a card
+  → `CardActionSheet` with change-art/duplicate/bleed/remove), **Settings** (reuses `PageSettings`),
+  **Export** (count/missing + low-res warn + Generate/Save/Delete). `PagePreview` gained an
+  `onCardTap` prop: in tap mode it hides the hover buttons and a tap calls `onCardTap`; **desktop
+  (no `onCardTap`) is byte-identical**. Modals go full-screen ≤768px; the `?` help toggles on tap
+  (desktop stays hover). Spec + plan in `docs/superpowers/`; verified live at 375px + desktop
+  regression at 927px; lint + build + selfcheck green.
+- **Save project / deck list:** sidebar "Save list" button → downloads a `.txt`
   deck list (`qty Name (SET) cn`) of the placed **Scryfall** cards. It's the *same* format the
   Scryfall import reads, so reloading a project = paste the `.txt` back into "Import from Scryfall"
   (no separate load path built). Import now attaches `{name, set, collector, primary}` to each
@@ -238,9 +252,10 @@ All verified live + `npm run lint` clean + `npm run build` green.
   tested with a real deck — fix the field path if an import comes back empty.
 - **A11y:** sidebar `<select>`s now carry `aria-label`s (field text is a decorative `<span>`);
   custom W/H inputs are wrapped in `<label>`. Remaining gap: no full keyboard/focus-visible audit.
-- **Touch:** the per-card hover buttons (change-art / duplicate / bleed / delete) reveal on
-  hover, so they're not reachable on touch devices (no tap-to-reveal). Fine for the desktop
-  print workflow; revisit if mobile matters.
+- **Touch (desktop layout):** the per-card hover buttons reveal on hover, so they're not
+  reachable on touch in the *desktop* layout. Resolved on the mobile layout (≤768px) — there
+  `PagePreview` runs in tap mode (`onCardTap`) and a tap opens `CardActionSheet`. A touch device
+  on a wide screen still gets the desktop hover buttons.
 - **Low-res warning:** the per-card `!` is canvas-drawn (visual-only, no SR text), but the
   sidebar now has a DOM `.lowres-warn` above the dpi field explaining it (counts cards whose
   decoded `naturalWidth` < `dpi*0.5*cardW/25.4` — same threshold as the marker; dims are decoded

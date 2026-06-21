@@ -1464,4 +1464,30 @@ body::before {
   font-family: var(--font); font-size: 0.95rem; padding: 13px 12px; cursor: pointer; }
 .sheet-danger { color: var(--danger); }
 .sheet-ic { display: inline-flex; width: 22px; }
+
+/* ============================================================
+   OVERRIDE ≤768px — modali full-screen + help tap
+   ============================================================ */
+@media (max-width: 768px) {
+  /* Modali occupano tutto lo schermo su mobile */
+  .modal {
+    max-width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+  .modal-overlay {
+    padding: 0;
+  }
+  /* Griglia art più compatta per tapping comodo */
+  .art-grid {
+    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  }
+  /* Help tooltip visibile quando il pulsante ? è stato tappato */
+  .help.open .help-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+}
 .sheet button:active { background: var(--bg-glass-hover); }

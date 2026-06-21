@@ -9,11 +9,25 @@ export default function MobileLayout({ settingsProps, previewProps, actions, add
   const [tab, setTab] = useState('cards');
   const [addOpen, setAddOpen] = useState(false);
   const [sel, setSel] = useState(null);
+  const [helpOpen, setHelpOpen] = useState(false);
   return (
     <div className="mobile">
       <header className="mobile-header">
         <Logo size={30} className="logo-mark" />
         <h1>Proxoteca</h1>
+        {/* Pulsante ? con tap-toggle su mobile — riusa lo stesso markup del desktop */}
+        <div className={`help${helpOpen ? ' open' : ''}`}>
+          <button type="button" className="help-btn" aria-label="How it works" onClick={() => setHelpOpen((o) => !o)}>?</button>
+          <div className="help-tooltip" role="tooltip">
+            <strong>How it works</strong>
+            <ol>
+              <li><b>Add cards</b> — tap <b>＋</b> to upload images or import from Scryfall (a card list or a deck link).</li>
+              <li><b>Set up</b> — sheet &amp; card size, bleed and crop marks in the <b>Settings</b> tab.</li>
+              <li><b>Tweak</b> — tap a card to change art, duplicate, toggle bleed, or remove it.</li>
+              <li><b>Export</b> — the <b>Export</b> tab: <b>Generate PDF</b> (print-ready); <b>Save list</b> exports your Scryfall cards as a reloadable deck list.</li>
+            </ol>
+          </div>
+        </div>
       </header>
       <main className="mobile-body" role="tabpanel">
         {tab === 'cards' && (
