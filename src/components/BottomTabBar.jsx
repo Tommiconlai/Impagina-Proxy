@@ -24,8 +24,10 @@ export default function BottomTabBar({ active, onChange }) {
       {TABS.map((t) => (
         <button
           key={t.key}
+          id={`tab-${t.key}`}
           role="tab"
           aria-selected={active === t.key}
+          aria-controls={`panel-${t.key}`}
           className={`tabbar-btn${active === t.key ? ' active' : ''}`}
           onClick={() => onChange(t.key)}
         >

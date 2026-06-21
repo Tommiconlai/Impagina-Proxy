@@ -29,7 +29,7 @@ export default function MobileLayout({ settingsProps, previewProps, actions, add
           </div>
         </div>
       </header>
-      <main className="mobile-body" role="tabpanel">
+      <main className="mobile-body" role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} tabIndex={0}>
         {tab === 'cards' && (
           <div className="mobile-cards">
             <PagePreview {...previewProps} onCardTap={setSel} />
