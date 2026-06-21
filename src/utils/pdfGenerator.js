@@ -275,13 +275,10 @@ function compressImage(img, cellWmm, cellHmm, dpi, bleedMm, bleedMode, quality =
   } else {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, w, h);
-    // object-fit: cover (immagini caricate a mano)
-    const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
-    const sw = img.naturalWidth * scale;
-    const sh = img.naturalHeight * scale;
-    const sx = (w - sw) / 2;
-    const sy = (h - sh) / 2;
-    ctx.drawImage(img, sx, sy, sw, sh);
+    // niente abbondanza: carta a misura di taglio, margine bleed lasciato vuoto
+    // (stessa area trim delle altre modalità → nessun resize togliendo l'abbondanza)
+    const b = Math.round(bleedMm * mmToPx);
+    ctx.drawImage(img, b, b, w - 2 * b, h - 2 * b);
   }
   return canvas.toDataURL('image/jpeg', quality);
 }

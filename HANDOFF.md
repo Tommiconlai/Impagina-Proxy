@@ -192,8 +192,10 @@ Tokens at the top of `src/index.css`. Also recorded in this project's Claude mem
   borderless`, else `stretch` (note: `/cards/collection` returns the default printing, so
   mirror only fires when that printing is itself full-art/borderless). Shared by the canvas
   preview and `compressImage`/PDF, follows the bleed slider (`bleed=0` → card fills the
-  cell). Manual uploads keep object-fit cover. (mpc-autofill itself is desktop MPC-order
-  automation, not embeddable; this replicates the print-ready bleed in-browser.)
+  cell). **`bleedMode: 'none'` draws the card at trim (63×88), bleed margin left blank** —
+  toggling bleed off no longer resizes the card up to the full cell (preview + PDF; was
+  fill-cell/cover before). (mpc-autofill itself is desktop MPC-order automation, not embeddable;
+  this replicates the print-ready bleed in-browser.)
 - **Scryfall import:** the green "+" is now a menu — "Carica file" (existing picker) or
   "Importa da Scryfall". The Scryfall option opens a modal (`ScryfallImportModal`) where you
   paste a `1x Card Name` list; `utils/scryfall.js` resolves names via `/cards/collection`

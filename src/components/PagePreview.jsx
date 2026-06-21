@@ -128,7 +128,9 @@ export function PageCanvas({ pageImages, formatKey, bleedMm, bleedStyle, dpi, ca
                         ctx.fillRect(x, y, w, h);
                         drawCardWithBleed(ctx, imgs[i], x, y, w, h, bleedPx, mode);
                     } else {
-                        ctx.drawImage(imgs[i], x, y, w, h);
+                        // niente abbondanza: carta a misura di taglio (63×88), margine vuoto.
+                        // Non riempie la cella → togliere l'abbondanza non ingrandisce la carta.
+                        ctx.drawImage(imgs[i], x + bleedPx, y + bleedPx, cardWpx, cardHpx);
                     }
                     // Avviso bassa risoluzione: la sorgente non copre metà dei px
                     // richiesti al DPI scelto → stampa sgranata. ponytail: soglia
