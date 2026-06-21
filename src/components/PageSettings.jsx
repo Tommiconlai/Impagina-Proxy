@@ -34,6 +34,7 @@ export default function PageSettings({
     cardType, setCardType, cardW, setCardW, cardH, setCardH,
     cropMarks, setCropMarks, cropStyle, setCropStyle,
     sheetUnit, setSheetUnit, sheetW, setSheetW, sheetH, setSheetH, customSheet,
+    lowResCount = 0,
 }) {
     const { cols, rows, perPage } = getGridInfo(formatKey, bleedMm, cardW, cardH, customSheet);
     const [pw, ph] = formatKey === 'custom' && customSheet
@@ -138,6 +139,17 @@ export default function PageSettings({
                             <option key={o.value} value={o.value}>{o.label}</option>
                         ))}
                     </SelectField>
+
+                    {lowResCount > 0 && (
+                        <div className="lowres-warn">
+                            <span className="lowres-mark" aria-hidden="true">!</span>
+                            <span>
+                                {lowResCount} card{lowResCount > 1 ? 's' : ''} {lowResCount > 1 ? 'are' : 'is'} too low-res for {dpi} DPI —
+                                {' '}{lowResCount > 1 ? 'they' : 'it'}’ll print soft/pixelated. Lower the DPI or use higher-res art.
+                                Flagged with a <b>!</b> on the card in the preview.
+                            </span>
+                        </div>
+                    )}
 
                     <SelectField label="Resolution" value={dpi} onChange={e => setDpi(parseInt(e.target.value, 10))}>
                         {DPI_OPTIONS.map(v => (

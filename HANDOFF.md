@@ -44,7 +44,7 @@ before restarting.
 | File | Role |
 |------|------|
 | `src/App.jsx` | Root: state (images, format incl. `custom`, sheetUnit/sheetW/sheetH, bleed, bleedStyle, dpi, cardType/cardW/cardH, cropMarks/cropStyle, import + art-picker modals), derives `customSheet` (mm) for custom sheets, header (logo + `?` **help tooltip** — pure-CSS `.help` hover/focus popover with the 4-step how-to, replaced the old tagline) / sidebar / main layout, `react-dropzone` (full-area drag&drop + `open()`). Settings persisted to `localStorage` (`ip:format`/`ip:bleed`/`ip:bleedStyle`/`ip:dpi`/`ip:cardType`/`ip:cardW`/`ip:cardH`/`ip:cropMarks`/`ip:cropStyle`/`ip:sheetUnit`/`ip:sheetW`/`ip:sheetH`; `ip:cardlist` lives in the import modal). Image items carry a `bleedMode` (`none`/`stretch`/`mirror`). Handlers: add / remove / clearAll / toggleBleed (none↔stretch) / duplicate / replaceArt (updates edition) / saveProject (Scryfall cards → `.txt`). Scryfall image items carry `{name,set,collector,primary}` for the save; manual uploads don't (→ excluded). Sidebar = scrolling `.sidebar-scroll` (PageSettings) + fixed `.sidebar-export` footer (flex column): **Add cards** (`.btn-add`, green, opens the upload/Scryfall `.add-menu`) → **Generate PDF** → row [**Save list** · **Delete all**]. Save/Delete are always rendered, `disabled` when `images.length === 0` (Save list hovers green, Delete hovers red). The `addMenuOpen` state + click-outside live here (moved out of the preview footer) |
-| `src/components/PageSettings.jsx` | Sidebar settings in **2 group cards**: "Foglio & carta" (format presets + custom sheet W×H with mm/inch toggle · card type presets + custom W×H · bleed) and "Stampa" (bleed-style auto/mirror/stretch/black · dpi · crop marks: show checkbox + style Linee/Squadrette) + "Riepilogo" info box. `SelectField` helper = label + `aria-label`ed select |
+| `src/components/PageSettings.jsx` | Sidebar settings in **2 group cards**: "Foglio & carta" (format presets + custom sheet W×H with mm/inch toggle · card type presets + custom W×H · bleed) and "Stampa" (bleed-style auto/mirror/stretch/black · dpi · crop marks: show checkbox + style Linee/Squadrette) + "Riepilogo" info box. Above the dpi field, a **low-res warning** (`.lowres-warn`, prop `lowResCount`) appears only when ≥1 placed card is below the chosen DPI — explains the red `!` preview marker. `SelectField` helper = label + `aria-label`ed select |
 | `src/components/PagePreview.jsx` | Preview: one large centered page (`PageCanvas`) + per-card hover overlay (click = change art; buttons: duplicate, bleed on/off, delete). `PageCanvas` draws cards + bleed + crop marks + a **low-res warning** triangle (source < ½ the px the chosen DPI needs). Footer: pager + count (the add "+" menu moved to the sidebar export footer) |
 | `src/components/ScryfallImportModal.jsx` | Modal: paste a card list **or a deck link** (URL field + "Carica" → `fetchDeckList` fills the textarea) → fetch from Scryfall → add to images. Pasted text persisted to `localStorage` (`ip:cardlist`). Accepts `(SET) collector` to pin a printing |
 | `src/components/ArtPickerModal.jsx` | Click a placed card → lists all Scryfall printings (`fetchPrints`, `/cards/search?unique=prints`) → pick one → `downloadAsFile` swaps `file`+`preview` (id/bleedMode kept). Card name is derived from the **filename**; `fetchPrints` picks the printing face whose name matches it, so DFC backs get back-face prints |
@@ -239,8 +239,11 @@ All verified live + `npm run lint` clean + `npm run build` green.
 - **Touch:** the per-card hover buttons (change-art / duplicate / bleed / delete) reveal on
   hover, so they're not reachable on touch devices (no tap-to-reveal). Fine for the desktop
   print workflow; revisit if mobile matters.
-- **Low-res warning is canvas-drawn** (not a DOM badge), so it's visual-only — no screen-reader
-  text. Acceptable for a print-quality hint; tied to the same a11y gap above.
+- **Low-res warning:** the per-card `!` is canvas-drawn (visual-only, no SR text), but the
+  sidebar now has a DOM `.lowres-warn` above the dpi field explaining it (counts cards whose
+  decoded `naturalWidth` < `dpi*0.5*cardW/25.4` — same threshold as the marker; dims are decoded
+  once on add and stored as `item.w`). `replaceArt` doesn't re-decode `w` (Scryfall prints are all
+  745×1040, so it stays valid).
 - **Tests:** only `scryfall.selfcheck.js` (parseCardList). No component/integration tests.
 
 ## Conventions

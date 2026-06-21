@@ -90,6 +90,12 @@ export default function App() {
     }));
     setImages(prev => [...prev, ...newItems]);
     setError(null);
+    // Decodifica la larghezza nativa (per l'avviso bassa risoluzione vs DPI scelto)
+    newItems.forEach((it) => {
+      const probe = new Image();
+      probe.onload = () => setImages(prev => prev.map(p => (p.id === it.id ? { ...p, w: probe.naturalWidth } : p)));
+      probe.src = it.preview;
+    });
   };
 
   // Upload manuali (drag&drop / file picker): nessuna abbondanza generata.
@@ -180,6 +186,8 @@ export default function App() {
   });
 
   const missing = images.length === 0 || perPage === 0 ? 0 : (perPage - (images.length % perPage)) % perPage;
+  // Carte la cui sorgente non regge il DPI scelto — stessa soglia del marker "!" nel preview.
+  const lowResCount = images.reduce((n, it) => n + (it.w && it.w < dpi * 0.5 * (cardW / 25.4) ? 1 : 0), 0);
 
   return (
     <div className="app">
@@ -216,6 +224,7 @@ export default function App() {
             setBleedStyle={setBleedStyle}
             dpi={dpi}
             setDpi={setDpi}
+            lowResCount={lowResCount}
             cardType={cardType}
             setCardType={setCardType}
             cardW={cardW}

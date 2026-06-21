@@ -318,6 +318,40 @@ h3 {
   justify-content: center;
 }
 
+/* Avviso bassa risoluzione (sopra i DPI) — rispecchia il marker "!" rosso del preview */
+.lowres-warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.32);
+  border-radius: var(--radius-sm);
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.lowres-warn .lowres-mark {
+  flex-shrink: 0;
+  width: 17px;
+  height: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ef4444;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.72rem;
+  border-radius: 4px;
+  margin-top: 1px;
+}
+
+.lowres-warn b {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
 /* ============================================================
    MAIN CONTENT
    ============================================================ */
