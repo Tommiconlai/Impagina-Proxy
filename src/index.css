@@ -697,9 +697,8 @@ input[type="range"]::-webkit-slider-thumb:hover {
 .add-menu {
   position: absolute;
   bottom: calc(100% + 10px);
-  left: 50%;
-  transform: translateX(-50%);
-  min-width: 200px;
+  left: 0;
+  right: 0;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
