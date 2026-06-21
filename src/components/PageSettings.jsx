@@ -34,7 +34,7 @@ export default function PageSettings({
     cardType, setCardType, cardW, setCardW, cardH, setCardH,
     cropMarks, setCropMarks, cropStyle, setCropStyle,
     sheetUnit, setSheetUnit, sheetW, setSheetW, sheetH, setSheetH, customSheet,
-    lowResCount = 0,
+    lowResCount = 0, preBled = false, setPreBled = () => {},
 }) {
     const { cols, rows, perPage } = getGridInfo(formatKey, bleedMm, cardW, cardH, customSheet);
     const [pw, ph] = formatKey === 'custom' && customSheet
@@ -127,6 +127,25 @@ export default function PageSettings({
                             <option key={v} value={v}>{v.toFixed(1)} mm</option>
                         ))}
                     </SelectField>
+
+                    <div className="field">
+                        <label className="checkbox-row">
+                            <input type="checkbox" checked={preBled} onChange={e => setPreBled(e.target.checked)} />
+                            <span className="anim-check" aria-hidden="true">
+                                <svg width="18" height="18" viewBox="0 0 18 18">
+                                    <path d="M 1 9 L 1 9 c 0 -5 3 -8 8 -8 L 9 1 C 14 1 17 5 17 9 L 17 9 c 0 4 -4 8 -8 8 L 9 17 C 5 17 1 14 1 9 L 1 9 Z" />
+                                    <polyline points="1 9 7 14 15 4" />
+                                </svg>
+                            </span>
+                            <span>Uploads already include bleed</span>
+                        </label>
+                        {preBled && (
+                            <p className="field-hint">
+                                Uploaded images are drawn edge-to-edge (no bleed generated). Set <b>Bleed</b> above
+                                to the amount baked into your art (e.g. 2&nbsp;mm) so the crop marks land on the trim.
+                            </p>
+                        )}
+                    </div>
                 </div>
             </div>
 

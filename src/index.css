@@ -507,6 +507,15 @@ input[type="number"]:focus {
   opacity: 0;
 }
 
+/* Nota esplicativa sotto un controllo (es. "upload già con abbondanza") */
+.field-hint {
+  margin-top: 8px;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+.field-hint b { color: var(--text-secondary); }
+
 .anim-check {
   cursor: pointer;
   position: relative;

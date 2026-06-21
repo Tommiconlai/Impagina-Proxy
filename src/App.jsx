@@ -43,6 +43,7 @@ export default function App() {
   const [importOpen, setImportOpen] = useState(false);
   const [mpcOpen, setMpcOpen] = useState(false); // import da file XML MPCFill
   const [addMenuOpen, setAddMenuOpen] = useState(false); // menu "+" in sidebar (carica file / Scryfall)
+  const [preBled, setPreBled] = useState(() => localStorage.getItem('ip:preBled') === '1'); // upload già con abbondanza
   const [editingId, setEditingId] = useState(null); // carta di cui cambiare l'art
   // Foglio personalizzato in mm (sheetW/H sono nell'unità scelta: mm o inch).
   const customSheet = formatKey === 'custom'
@@ -65,7 +66,8 @@ export default function App() {
     localStorage.setItem('ip:sheetUnit', sheetUnit);
     localStorage.setItem('ip:sheetW', String(sheetW));
     localStorage.setItem('ip:sheetH', String(sheetH));
-  }, [formatKey, bleedMm, bleedStyle, dpi, cardType, cardW, cardH, cropMarks, cropStyle, sheetUnit, sheetW, sheetH]);
+    localStorage.setItem('ip:preBled', preBled ? '1' : '0');
+  }, [formatKey, bleedMm, bleedStyle, dpi, cardType, cardW, cardH, cropMarks, cropStyle, sheetUnit, sheetW, sheetH, preBled]);
 
   // Revoca gli object URL residui allo smontaggio (evita leak di memoria).
   // imagesRef tiene il riferimento aggiornato senza ri-registrare l'effect.
@@ -104,7 +106,9 @@ export default function App() {
   };
 
   // Upload manuali (drag&drop / file picker): nessuna abbondanza generata.
-  const handleImagesAdded = (files) => addItems(files.map(file => ({ file, bleedMode: 'none' })));
+  // Upload manuali: 'full' se l'immagine ha già l'abbondanza (riempie la cella),
+  // altrimenti 'none' (carta a misura di taglio, margine bleed vuoto).
+  const handleImagesAdded = (files) => addItems(files.map(file => ({ file, bleedMode: preBled ? 'full' : 'none' })));
 
   const handleRemove = (id) => {
     setImages(prev => {
@@ -212,7 +216,7 @@ export default function App() {
     formatKey, setFormatKey, bleedMm, setBleedMm, bleedStyle, setBleedStyle, dpi, setDpi,
     cardType, setCardType, cardW, setCardW, cardH, setCardH, cropMarks, setCropMarks,
     cropStyle, setCropStyle, sheetUnit, setSheetUnit, sheetW, setSheetW, sheetH, setSheetH,
-    customSheet, lowResCount,
+    customSheet, lowResCount, preBled, setPreBled,
   };
   const previewProps = {
     images, formatKey, bleedMm, bleedStyle, dpi, cardW, cardH, showCrop: cropMarks, cropStyle,
