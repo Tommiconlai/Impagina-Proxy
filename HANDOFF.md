@@ -82,7 +82,17 @@ Tokens at the top of `src/index.css`. Also recorded in this project's Claude mem
 
 ## Done recently
 
-- **Mobile UX — bottom-tab shell (most recent):** at `≤768px` (`useIsMobile`), `App` renders
+- **Change-art modal sizing (most recent):** the box was `.modal` `max-width:520px` —
+  a small, resolution-dependent fraction on wider/hi-dpi monitors. New `.modal-art`
+  modifier (in `ArtPickerModal`) sets a **fixed `width:820px` (`max-width:94vw` guard)**
+  so it's the same CSS size on every desktop resolution and ~58% bigger. `.art-grid`
+  desktop cells went from `minmax(110px,1fr)` to a **fixed `168px`** (gap 12, `max-height:64vh`)
+  so thumbnails are larger and the grid fills the wider box. The mobile `@media(max-width:768px)`
+  `.modal` reset gained `width:100%;min-width:0` so the full-screen mobile modal is unaffected.
+  (`fit-content` was tried first but `auto-fill` collapses to one column under intrinsic
+  sizing.) Verified live: 820px at 1481px & 1920px viewports (identical), mobile 375px full-screen
+  no overflow; lint + build green.
+- **Mobile UX — bottom-tab shell:** at `≤768px` (`useIsMobile`), `App` renders
   `MobileLayout` instead of the desktop sidebar/preview; all state + handlers stay in `App` and
   flow through `settingsProps`/`previewProps`/`actions`/`addMenu` bundles (shared by both layouts,
   DRY). Three bottom tabs: **Cards** (`PageCanvas` preview + ＋ FAB → add bottom-sheet; tap a card

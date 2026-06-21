@@ -873,6 +873,14 @@ input[type="range"]::-webkit-slider-thumb:hover {
   animation: fade-up 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Box "Cambia art": larghezza fissa (820px) -> stessa dimensione CSS a ogni
+   risoluzione desktop, e piu' grande del 520px di default. 94vw = guardia
+   sugli schermi stretti. La griglia auto-fill riempie questa larghezza. */
+.modal-art {
+  width: 820px;
+  max-width: 94vw;
+}
+
 .modal-header {
   display: flex;
   align-items: center;
@@ -918,9 +926,9 @@ input[type="range"]::-webkit-slider-thumb:hover {
 /* Griglia stampe del box "Cambia art" */
 .art-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-  gap: 8px;
-  max-height: 60vh;
+  grid-template-columns: repeat(auto-fill, 168px);
+  gap: 12px;
+  max-height: 64vh;
   overflow-y: auto;
   margin-top: 4px;
 }
@@ -1473,6 +1481,8 @@ body::before {
 @media (max-width: 768px) {
   /* Modali occupano tutto lo schermo su mobile */
   .modal {
+    width: 100%;
+    min-width: 0;
     max-width: 100%;
     height: 100dvh;
     max-height: 100dvh;
