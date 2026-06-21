@@ -1444,3 +1444,7 @@ body::before {
   padding: 9px 0 8px; background: none; border: none; cursor: pointer;
   color: var(--text-muted); font-family: var(--font); font-size: 0.68rem; font-weight: 500; }
 .tabbar-btn.active { color: var(--accent-light); }
+.mobile-settings { padding: 16px; }
+.mobile-export { padding: 20px 16px; display: flex; flex-direction: column; gap: 12px; }
+.export-summary { font-size: 0.95rem; color: var(--text-secondary); }
+.export-summary strong { color: var(--text-primary); font-size: 1.4rem; }

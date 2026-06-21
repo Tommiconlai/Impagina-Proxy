@@ -210,7 +210,11 @@ export default function App() {
   if (isMobile) {
     return (
       <>
-        <MobileLayout />
+        <MobileLayout
+          settingsProps={settingsProps}
+          actions={{ onGenerate: handleGenerate, onSave: handleSaveProject, onClear: handleClearAll,
+            loading, error, notice, count: images.length, missing, lowResCount, dpi }}
+        />
         <ScryfallImportModal open={importOpen} onClose={() => setImportOpen(false)} onImport={addItems} />
         {editing && <ArtPickerModal key={editing.id} card={editing} onClose={() => setEditingId(null)} onPick={handleReplaceArt} />}
       </>
