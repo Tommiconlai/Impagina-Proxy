@@ -47,9 +47,10 @@ before restarting.
 | `src/components/PageSettings.jsx` | Sidebar settings in **2 group cards**: "Foglio & carta" (format presets + custom sheet W×H with mm/inch toggle · card type presets + custom W×H · bleed) and "Stampa" (bleed-style auto/mirror/stretch/black · dpi · crop marks: show checkbox + style Linee/Squadrette) + "Riepilogo" info box. Above the dpi field, a **low-res warning** (`.lowres-warn`, prop `lowResCount`) appears only when ≥1 placed card is below the chosen DPI — explains the red `!` preview marker. `SelectField` helper = label + `aria-label`ed select |
 | `src/components/PagePreview.jsx` | Preview: one large centered page (`PageCanvas`) + per-card hover overlay (click = change art; buttons: duplicate, bleed on/off, delete). `PageCanvas` draws cards + bleed + crop marks + a **low-res warning** triangle (source < ½ the px the chosen DPI needs). Footer: pager + count (the add "+" menu moved to the sidebar export footer) |
 | `src/components/MpcImportModal.jsx` | Modal: pick a **MPCFill `.xml`** order file → `parseMpcXml` lists cards → `fetchMpcImages` downloads each from Google Drive → `onImport` (= App `addItems`). File input is a hidden `<input>` inside a `.mpc-file` label. Shows count, progress, and failed-download names |
-| `src/utils/mpcfill.js` | `parseMpcXml(text)` (DOMParser → `{cards:[{id,name,count}]}`, fronts then backs; comma-separated `<slots>` = copies; name from `<query>`) + `fetchMpcImages(cards,onProgress)` (downloads via **`lh3.googleusercontent.com/d/<id>=w2000`** — the only Drive endpoint that sends CORS headers, so the blob is readable/not tainted; `drive.google.com/uc` + `/thumbnail` 403 even through the proxy). Each card → `{file, bleedMode:'full', name}`, one entry per copy (same `File` reused) |
+| `src/utils/mpcfill.js` | `parseMpcXml(text)` (DOMParser → `{cards:[{id,name,count}]}`, fronts then backs; comma-separated `<slots>` = copies; name from `<query>`) + `fetchMpcImages(cards,onProgress)` (downloads via **`lh3.googleusercontent.com/d/<id>=w2000`** — the only Drive endpoint that sends CORS headers, so the blob is readable/not tainted; `drive.google.com/uc` + `/thumbnail` 403 even through the proxy). Each card → `{file, bleedMode:'full', name}`, one entry per copy (same `File` reused). **Art search:** `searchMpcPrints(name, limit=90)` POSTs `mpcfill.com/2/editorSearch/` then `/2/cards/` **through `corsproxy.io`** (the API has no CORS); `sources` must be `[[pk,true],…]` (cached from `/2/sources/`); returns `{id, thumb(lh3 =w400), png(lh3 =w2000), set(sourceName), setName(card name)}`. `MPC_PRINTS_LIMIT` exported for the "showing first N" hint |
 | `src/components/ScryfallImportModal.jsx` | Modal: paste a card list **or a deck link** (URL field + "Carica" → `fetchDeckList` fills the textarea) → fetch from Scryfall → add to images. Pasted text persisted to `localStorage` (`ip:cardlist`). Accepts `(SET) collector` to pin a printing |
-| `src/components/ArtPickerModal.jsx` | Click a placed card → lists all Scryfall printings (`fetchPrints`, `/cards/search?unique=prints`) → pick one → `downloadAsFile` swaps `file`+`preview` (id/bleedMode kept). Card name is derived from the **filename**; `fetchPrints` picks the printing face whose name matches it, so DFC backs get back-face prints |
+| `src/components/ArtSourceModal.jsx` | Step shown **before** the art box: "Change art — <name>" + two big buttons, **Scryfall** (official printings) / **MPCFill** (custom, print-ready). Picking sets `artSource` and opens `ArtPickerModal` |
+| `src/components/ArtPickerModal.jsx` | Source-aware art box (prop `source` = `scryfall`\|`mpc`). Scryfall → `fetchPrints`; MPC → `searchMpcPrints` (mpcfill.com). Both render the same `.art-grid`; the pick downloads the chosen image to a `File` (`downloadAsFile` — lh3 + Scryfall are both CORS-readable) then calls `onPick(file, meta)`. Scryfall meta = `{set,collector}` (bleedMode kept); MPC meta = `{bleedMode:'full', set:null, collector:null}`. Header shows a `.modal-source-tag`; MPC caps at `MPC_PRINTS_LIMIT` (90) with a "showing first N" hint. Card name from the **filename**; remounted via `key={id-source}` so switching source re-fetches |
 | `src/hooks/useIsMobile.js` | `matchMedia('(max-width: 768px)')` via `useSyncExternalStore` → boolean. App renders the desktop tree above 768px, `MobileLayout` at/below |
 | `src/components/MobileLayout.jsx` | Mobile shell (≤768px): compact header (Logo + `?` tap-tooltip), three bottom tabs via `BottomTabBar` — **Cards** (`PageCanvas` preview + ＋ FAB → add bottom-sheet; `onCardTap` → `CardActionSheet`), **Settings** (reuses `PageSettings`), **Export** (count/missing + low-res warn + Generate/Save/Delete). Presentational only; consumes `settingsProps`/`previewProps`/`actions`/`addMenu` bundles from `App`. Local state: tab, addOpen, sel, helpOpen |
 | `src/components/BottomTabBar.jsx` | 3-tab nav (Cards/Settings/Export); reuses `IconLayout`/`IconFile` + an inline sliders icon |
@@ -84,7 +85,21 @@ Tokens at the top of `src/index.css`. Also recorded in this project's Claude mem
 
 ## Done recently
 
-- **MPCFill XML import (most recent):** the `+` menu got a third option, **Import from MPCFill**
+- **Change-art: pick the source (Scryfall or MPCFill) (most recent):** clicking a card now opens
+  `ArtSourceModal` ("where to search art?") → the existing `ArtPickerModal` opens against the chosen
+  source. MPC search hits `mpcfill.com/2/editorSearch/` + `/2/cards/` via `corsproxy.io` (API has no
+  CORS; `sources` = `[[pk,true],…]` cached from `/2/sources/`), thumbnails/full from lh3 (`searchMpcPrints`).
+  `ArtPickerModal` got a `source` prop; the pick now downloads the `File` itself and calls
+  `onPick(file, meta)` — `handleReplaceArt` was refactored to `(file, {bleedMode?,set?,collector?})`.
+  Both sources **always pass a bleedMode**: MPC = `'full'`; Scryfall = `'mirror'` for full-art/borderless
+  prints else `'stretch'` (mirrors the import-path logic; `fetchPrints` now surfaces `fullArt`/`borderless`).
+  An MPC pick also clears `name`/`primary` so the card counts as **custom** in "Save list" (its art can't
+  round-trip as text) instead of silently reloading the default Scryfall print. The per-card bleed toggle
+  preserves `'full'`: off→`'none'` (remembers via `_wasFull`), on→back to `'full'` (not `'stretch'`).
+  `searchMpcPrints`/`allSourceTuples` guard proxy errors (a JSON-bodied 403 no longer poisons the source
+  cache). Modal remounts via `key={id-source}`. Adversarially reviewed (workflow) + verified live:
+  MPC 90 results w/ source labels → full-bleed swap, toggle off/on restores full; Scryfall 123 prints → swap.
+- **MPCFill XML import:** the `+` menu got a third option, **Import from MPCFill**
   (desktop add-menu + mobile add-sheet). `MpcImportModal` takes a MPCFill `.xml` order file;
   `utils/mpcfill.js` parses it (`<id>` = Google Drive file, `<slots>` count = copies, `<query>`
   = card name) and downloads each image. **Key finding:** Drive images are only CORS-fetchable

@@ -6,10 +6,11 @@ import PagePreview from './components/PagePreview';
 import ScryfallImportModal from './components/ScryfallImportModal';
 import MpcImportModal from './components/MpcImportModal';
 import ArtPickerModal from './components/ArtPickerModal';
+import ArtSourceModal from './components/ArtSourceModal';
 import MobileLayout from './components/MobileLayout';
 import { useIsMobile } from './hooks/useIsMobile';
 import { generatePDF, getGridInfo, PAPER_FORMATS } from './utils/pdfGenerator';
-import { downloadAsFile, buildDeckList } from './utils/scryfall';
+import { buildDeckList } from './utils/scryfall';
 import { IconFile, IconAlert, IconTrash, IconDownload, IconImage, IconPlus, Logo } from './components/icons';
 
 // Lettura numerica da localStorage con default (null/NaN → default, 0 valido).
@@ -42,13 +43,21 @@ export default function App() {
   const [importOpen, setImportOpen] = useState(false);
   const [mpcOpen, setMpcOpen] = useState(false); // import da file XML MPCFill
   const [addMenuOpen, setAddMenuOpen] = useState(false); // menu "+" in sidebar (carica file / Scryfall)
+  const [artChooser, setArtChooser] = useState(null); // carta in attesa di scelta sorgente art
   const [editingId, setEditingId] = useState(null); // carta di cui cambiare l'art
+  const [artSource, setArtSource] = useState('scryfall'); // sorgente scelta: scryfall | mpc
   // Foglio personalizzato in mm (sheetW/H sono nell'unità scelta: mm o inch).
   const customSheet = formatKey === 'custom'
     ? (sheetUnit === 'in' ? [sheetW * 25.4, sheetH * 25.4] : [sheetW, sheetH])
     : null;
   const { perPage } = getGridInfo(formatKey, bleedMm, cardW, cardH, customSheet);
   const editing = editingId ? images.find(i => i.id === editingId) : null;
+  const choosing = artChooser ? images.find(i => i.id === artChooser) : null;
+
+  // Clic su una carta → chiede prima la sorgente (Scryfall/MPC), poi apre il box.
+  const openArtChooser = (id) => setArtChooser(id);
+  const pickArtSource = (src) => { setArtSource(src); setEditingId(artChooser); setArtChooser(null); };
+  const closeArtPicker = () => setEditingId(null);
 
   // Persiste i settaggi (non le immagini: sono blob, si re-importano in 1 click).
   useEffect(() => {
@@ -120,9 +129,14 @@ export default function App() {
 
   // Abbondanza on/off per carta: none ↔ stretch. Lo stile globale può poi forzare
   // mirror/black sulle carte che hanno abbondanza. Utile sugli upload manuali.
-  const handleToggleBleed = (id) => setImages(prev => prev.map(it =>
-    it.id === id ? { ...it, bleedMode: it.bleedMode === 'none' ? 'stretch' : 'none' } : it,
-  ));
+  const handleToggleBleed = (id) => setImages(prev => prev.map(it => {
+    if (it.id !== id) return it;
+    // 'full' = art MPC già al vivo: spegnendola ricorda l'origine, così riaccendendo
+    // torna a 'full' (non 'stretch', che rovinerebbe un'immagine già con abbondanza).
+    if (it.bleedMode === 'full') return { ...it, bleedMode: 'none', _wasFull: true };
+    if (it.bleedMode === 'none' && it._wasFull) return { ...it, bleedMode: 'full' };
+    return { ...it, bleedMode: it.bleedMode === 'none' ? 'stretch' : 'none' };
+  }));
 
   // Duplica una carta (preview con object URL nuovo, inserita dopo l'originale).
   const handleDuplicate = (id) => setImages(prev => {
@@ -133,16 +147,29 @@ export default function App() {
     return [...prev.slice(0, idx + 1), dup, ...prev.slice(idx + 1)];
   });
 
-  // Cambia art: scarica la stampa scelta e sostituisce file+preview (id/bleedMode invariati).
-  const handleReplaceArt = async (png, name, set, collector) => {
-    const file = await downloadAsFile(png, name);
+  // Cambia art: il box ha già scaricato il File; sostituisce file+preview (id invariato).
+  // meta: { bleedMode?, set?, collector? }. Scryfall aggiorna set/collector e tiene il
+  // bleedMode; MPC passa bleedMode:'full' (art già al vivo) e azzera set/collector.
+  const handleReplaceArt = (file, { bleedMode, set, collector } = {}) => {
     const preview = URL.createObjectURL(file);
+    const isMpcPick = bleedMode === 'full'; // solo l'art MPC usa 'full'
     setImages(prev => prev.map(it => {
       if (it.id !== editingId) return it;
       URL.revokeObjectURL(it.preview);
-      // Aggiorna l'edizione così il salvataggio segue la stampa scelta (set lowercase
-      // per coerenza con l'import; collector mantiene il case — Scryfall è case-sensitive).
-      return { ...it, file, preview, set: set != null ? set.toLowerCase() : it.set, collector: collector != null ? collector : it.collector };
+      return {
+        ...it, file, preview,
+        // Entrambe le sorgenti passano sempre un bleedMode (MPC 'full'; Scryfall
+        // mirror/stretch in base a full-art/borderless) → niente fallback.
+        bleedMode: bleedMode != null ? bleedMode : it.bleedMode,
+        // set lowercase (coerenza con l'import); collector mantiene il case (Scryfall
+        // è case-sensitive). undefined = invariato; null = azzerato (MPC).
+        set: set !== undefined ? (set ? set.toLowerCase() : set) : it.set,
+        collector: collector !== undefined ? collector : it.collector,
+        // Art MPC = immagine senza identità Scryfall → niente name/primary, così
+        // "Save list" la conta come custom invece di ricaricare la stampa di default.
+        name: isMpcPick ? undefined : it.name,
+        primary: isMpcPick ? undefined : it.primary,
+      };
     }));
     setEditingId(null);
   };
@@ -204,7 +231,7 @@ export default function App() {
   };
   const previewProps = {
     images, formatKey, bleedMm, bleedStyle, dpi, cardW, cardH, showCrop: cropMarks, cropStyle,
-    customSheet, onRemove: handleRemove, onChangeArt: setEditingId, onToggleBleed: handleToggleBleed,
+    customSheet, onRemove: handleRemove, onChangeArt: openArtChooser, onToggleBleed: handleToggleBleed,
     onDuplicate: handleDuplicate, isDragActive, missing,
   };
 
@@ -221,7 +248,8 @@ export default function App() {
         />
         <ScryfallImportModal open={importOpen} onClose={() => setImportOpen(false)} onImport={addItems} />
         <MpcImportModal open={mpcOpen} onClose={() => setMpcOpen(false)} onImport={addItems} />
-        {editing && <ArtPickerModal key={editing.id} card={editing} onClose={() => setEditingId(null)} onPick={handleReplaceArt} />}
+        {choosing && <ArtSourceModal name={choosing.file.name.replace(/\.[a-z0-9]+$/i, '')} onPick={pickArtSource} onClose={() => setArtChooser(null)} />}
+        {editing && <ArtPickerModal key={`${editing.id}-${artSource}`} card={editing} source={artSource} onClose={closeArtPicker} onPick={handleReplaceArt} />}
       </>
     );
   }
@@ -324,11 +352,20 @@ export default function App() {
 
       <MpcImportModal open={mpcOpen} onClose={() => setMpcOpen(false)} onImport={addItems} />
 
+      {choosing && (
+        <ArtSourceModal
+          name={choosing.file.name.replace(/\.[a-z0-9]+$/i, '')}
+          onPick={pickArtSource}
+          onClose={() => setArtChooser(null)}
+        />
+      )}
+
       {editing && (
         <ArtPickerModal
-          key={editing.id}
+          key={`${editing.id}-${artSource}`}
           card={editing}
-          onClose={() => setEditingId(null)}
+          source={artSource}
+          onClose={closeArtPicker}
           onPick={handleReplaceArt}
         />
       )}
