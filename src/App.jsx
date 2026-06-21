@@ -5,6 +5,8 @@ import PageSettings from './components/PageSettings';
 import PagePreview from './components/PagePreview';
 import ScryfallImportModal from './components/ScryfallImportModal';
 import ArtPickerModal from './components/ArtPickerModal';
+import MobileLayout from './components/MobileLayout';
+import { useIsMobile } from './hooks/useIsMobile';
 import { generatePDF, getGridInfo, PAPER_FORMATS } from './utils/pdfGenerator';
 import { downloadAsFile, buildDeckList } from './utils/scryfall';
 import { IconFile, IconAlert, IconTrash, IconDownload, IconImage, IconPlus, Logo } from './components/icons';
@@ -189,6 +191,32 @@ export default function App() {
   // Carte la cui sorgente non regge il DPI scelto — stessa soglia del marker "!" nel preview.
   const lowResCount = images.reduce((n, it) => n + (it.w && it.w < dpi * 0.5 * (cardW / 25.4) ? 1 : 0), 0);
 
+  const isMobile = useIsMobile();
+
+  // Bundle props condivisi: sia il ramo desktop sia MobileLayout (Tasks 2–4) li consumano.
+  const settingsProps = {
+    formatKey, setFormatKey, bleedMm, setBleedMm, bleedStyle, setBleedStyle, dpi, setDpi,
+    cardType, setCardType, cardW, setCardW, cardH, setCardH, cropMarks, setCropMarks,
+    cropStyle, setCropStyle, sheetUnit, setSheetUnit, sheetW, setSheetW, sheetH, setSheetH,
+    customSheet, lowResCount,
+  };
+  const previewProps = {
+    images, formatKey, bleedMm, bleedStyle, dpi, cardW, cardH, showCrop: cropMarks, cropStyle,
+    customSheet, onRemove: handleRemove, onChangeArt: setEditingId, onToggleBleed: handleToggleBleed,
+    onDuplicate: handleDuplicate, isDragActive, missing,
+  };
+
+  // Ramo mobile: shell a tab + modali condivise (props reali arrivano in Tasks 2–4).
+  if (isMobile) {
+    return (
+      <>
+        <MobileLayout />
+        <ScryfallImportModal open={importOpen} onClose={() => setImportOpen(false)} onImport={addItems} />
+        {editing && <ArtPickerModal key={editing.id} card={editing} onClose={() => setEditingId(null)} onPick={handleReplaceArt} />}
+      </>
+    );
+  }
+
   return (
     <div className="app">
       {/* ── Header ── */}
@@ -215,34 +243,7 @@ export default function App() {
         {/* Sidebar */}
         <aside className="sidebar">
           <div className="sidebar-scroll">
-          <PageSettings
-            formatKey={formatKey}
-            setFormatKey={setFormatKey}
-            bleedMm={bleedMm}
-            setBleedMm={setBleedMm}
-            bleedStyle={bleedStyle}
-            setBleedStyle={setBleedStyle}
-            dpi={dpi}
-            setDpi={setDpi}
-            lowResCount={lowResCount}
-            cardType={cardType}
-            setCardType={setCardType}
-            cardW={cardW}
-            setCardW={setCardW}
-            cardH={cardH}
-            setCardH={setCardH}
-            cropMarks={cropMarks}
-            setCropMarks={setCropMarks}
-            cropStyle={cropStyle}
-            setCropStyle={setCropStyle}
-            sheetUnit={sheetUnit}
-            setSheetUnit={setSheetUnit}
-            sheetW={sheetW}
-            setSheetW={setSheetW}
-            sheetH={sheetH}
-            setSheetH={setSheetH}
-            customSheet={customSheet}
-          />
+          <PageSettings {...settingsProps} />
           </div>
           <div className="sidebar-section sidebar-export">
             <div className="add-menu-wrap" ref={addMenuRef}>
@@ -299,24 +300,7 @@ export default function App() {
         {/* Main — area drop + preview grande */}
         <main className="main-content" {...getRootProps()}>
           <input {...getInputProps()} />
-          <PagePreview
-            images={images}
-            formatKey={formatKey}
-            bleedMm={bleedMm}
-            bleedStyle={bleedStyle}
-            dpi={dpi}
-            cardW={cardW}
-            cardH={cardH}
-            showCrop={cropMarks}
-            cropStyle={cropStyle}
-            customSheet={customSheet}
-            onRemove={handleRemove}
-            onChangeArt={setEditingId}
-            onToggleBleed={handleToggleBleed}
-            onDuplicate={handleDuplicate}
-            isDragActive={isDragActive}
-            missing={missing}
-          />
+          <PagePreview {...previewProps} />
         </main>
       </div>
 
