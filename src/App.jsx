@@ -7,7 +7,7 @@ import ScryfallImportModal from './components/ScryfallImportModal';
 import ArtPickerModal from './components/ArtPickerModal';
 import { generatePDF, getGridInfo, PAPER_FORMATS } from './utils/pdfGenerator';
 import { downloadAsFile, buildDeckList } from './utils/scryfall';
-import { IconFile, IconAlert, IconLayout, IconTrash, IconDownload } from './components/icons';
+import { IconFile, IconAlert, IconTrash, IconDownload, Logo } from './components/icons';
 
 // Lettura numerica da localStorage con default (null/NaN → default, 0 valido).
 const readNum = (k, d) => {
@@ -175,7 +175,7 @@ export default function App() {
     <div className="app">
       {/* ── Header ── */}
       <header className="app-header">
-        <span className="logo-icon"><IconLayout size={20} /></span>
+        <Logo size={34} className="logo-mark" />
         <h1>Proxoteca</h1>
         <span className="tagline">Lay out card proxies for printing</span>
       </header>

@@ -106,18 +106,10 @@ h3 {
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04), var(--shadow-md);
 }
 
-.app-header .logo-icon {
-  width: 36px;
-  height: 36px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-light));
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  color: #1f1606;
-  box-shadow: var(--glow);
+.app-header .logo-mark {
   flex-shrink: 0;
+  border-radius: 50%;
+  box-shadow: var(--glow);
 }
 
 .app-header h1 {
