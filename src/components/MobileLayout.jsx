@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import BottomTabBar from './BottomTabBar';
-import { Logo, IconFile, IconDownload, IconTrash } from './icons';
+import { Logo, IconFile, IconDownload, IconTrash, IconPlus, IconImage } from './icons';
 import PageSettings from './PageSettings';
+import PagePreview from './PagePreview';
 
-export default function MobileLayout({ settingsProps, actions }) {
+export default function MobileLayout({ settingsProps, previewProps, actions, addMenu }) {
   const [tab, setTab] = useState('cards');
+  const [addOpen, setAddOpen] = useState(false);
   return (
     <div className="mobile">
       <header className="mobile-header">
@@ -12,7 +14,21 @@ export default function MobileLayout({ settingsProps, actions }) {
         <h1>Proxoteca</h1>
       </header>
       <main className="mobile-body" role="tabpanel">
-        {tab === 'cards' && <div style={{ padding: 16 }}>Cards</div>}
+        {tab === 'cards' && (
+          <div className="mobile-cards">
+            <PagePreview {...previewProps} />
+            <button className="fab" onClick={() => setAddOpen(true)} aria-label="Add cards"><IconPlus size={26} /></button>
+            {addOpen && (
+              <div className="sheet-overlay" onClick={() => setAddOpen(false)}>
+                <div className="sheet" onClick={(e) => e.stopPropagation()} role="menu">
+                  <div className="sheet-handle" />
+                  <button role="menuitem" onClick={() => { setAddOpen(false); addMenu.onUpload(); }}><IconImage size={18} /> Upload files</button>
+                  <button role="menuitem" onClick={() => { setAddOpen(false); addMenu.onImport(); }}><IconDownload size={18} /> Import from Scryfall</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         {tab === 'settings' && (
           <div className="mobile-settings"><PageSettings {...settingsProps} /></div>
         )}

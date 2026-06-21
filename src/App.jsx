@@ -212,8 +212,10 @@ export default function App() {
       <>
         <MobileLayout
           settingsProps={settingsProps}
+          previewProps={previewProps}
           actions={{ onGenerate: handleGenerate, onSave: handleSaveProject, onClear: handleClearAll,
             loading, error, notice, count: images.length, missing, lowResCount, dpi }}
+          addMenu={{ onUpload: open, onImport: () => setImportOpen(true) }}
         />
         <ScryfallImportModal open={importOpen} onClose={() => setImportOpen(false)} onImport={addItems} />
         {editing && <ArtPickerModal key={editing.id} card={editing} onClose={() => setEditingId(null)} onPick={handleReplaceArt} />}
