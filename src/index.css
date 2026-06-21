@@ -1476,9 +1476,10 @@ body::before {
 .sheet-ic { display: inline-flex; width: 22px; }
 
 /* ============================================================
-   OVERRIDE ≤768px — modali full-screen + help tap
+   OVERRIDE mobile + tablet verticale — modali full-screen + help tap
+   ⚠️ Condizione allineata a useIsMobile.js (QUERY).
    ============================================================ */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-width: 1024px) and (orientation: portrait) {
   /* Modali occupano tutto lo schermo su mobile */
   .modal {
     width: 100%;

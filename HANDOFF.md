@@ -82,7 +82,13 @@ Tokens at the top of `src/index.css`. Also recorded in this project's Claude mem
 
 ## Done recently
 
-- **Change-art modal sizing (most recent):** the box was `.modal` `max-width:520px` —
+- **Mobile layout on portrait tablets (most recent):** `MobileLayout` now also renders on
+  **tablets held vertically**, not just phones. `useIsMobile` QUERY went from `(max-width:768px)`
+  to `(max-width:768px), (max-width:1024px) and (orientation:portrait)`; the `index.css`
+  full-screen-modal `@media` was changed to the **same** condition (keep the two in sync). Tablet
+  *landscape* and laptops stay desktop (the portrait clause excludes them). Verified live: 820px &
+  1024px portrait → bottom-tab shell + full-screen modal; 1180×820 landscape → desktop sidebar.
+- **Change-art modal sizing:** the box was `.modal` `max-width:520px` —
   a small, resolution-dependent fraction on wider/hi-dpi monitors. New `.modal-art`
   modifier (in `ArtPickerModal`) sets a **fixed `width:820px` (`max-width:94vw` guard)**
   so it's the same CSS size on every desktop resolution and ~58% bigger. `.art-grid`
