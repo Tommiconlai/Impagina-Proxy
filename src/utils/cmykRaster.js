@@ -34,6 +34,48 @@ export function isCmykJpeg(bytes) {
 }
 
 /**
+ * Estrae il profilo ICC incorporato da un JPEG (segmenti APP2 "ICC_PROFILE\0",
+ * multi-chunk: concatenati per numero di sequenza). Ritorna Uint8Array o null se
+ * assente. Per l'avviso di mismatch profilo sui file CMYK nativi (§2).
+ */
+export function extractIccFromJpeg(bytes) {
+  const d = bytes;
+  if (!d || d.length < 4 || d[0] !== 0xFF || d[1] !== 0xD8) return null;
+  const SIG = [0x49, 0x43, 0x43, 0x5F, 0x50, 0x52, 0x4F, 0x46, 0x49, 0x4C, 0x45, 0x00]; // 'ICC_PROFILE\0'
+  const chunks = []; // { seq, data }
+  let i = 2;
+  while (i < d.length - 1) {
+    if (d[i] !== 0xFF) { i++; continue; }
+    let m = d[i + 1];
+    while (m === 0xFF && i + 2 < d.length) { i++; m = d[i + 1]; }
+    if (m === 0xD8 || m === 0xD9 || (m >= 0xD0 && m <= 0xD7) || m === 0x01) { i += 2; continue; }
+    if (m === 0xDA) break; // SOS: fine header, stop
+    if (i + 3 >= d.length) break;
+    const len = (d[i + 2] << 8) | d[i + 3];
+    if (len < 2) break;
+    if (m === 0xE2) { // APP2
+      const p = i + 4;
+      let ok = true;
+      for (let k = 0; k < SIG.length; k++) if (d[p + k] !== SIG[k]) { ok = false; break; }
+      if (ok) {
+        const seq = d[p + 12];
+        const start = p + 14; // dopo sig(12)+seq(1)+count(1)
+        const end = i + 2 + len;
+        chunks.push({ seq, data: d.subarray(start, end) });
+      }
+    }
+    i += 2 + len;
+  }
+  if (!chunks.length) return null;
+  chunks.sort((a, b) => a.seq - b.seq);
+  const total = chunks.reduce((n, c) => n + c.data.length, 0);
+  const out = new Uint8Array(total);
+  let o = 0;
+  for (const c of chunks) { out.set(c.data, o); o += c.data.length; }
+  return out;
+}
+
+/**
  * Costruisce il buffer CMYK della cella piena (trim + abbondanza) dai canali
  * grezzi decodificati. `dec` = {width,height,data} (CMYK 8-bit interleaved,
  * convenzione DeviceCMYK: 0 = niente inchiostro).

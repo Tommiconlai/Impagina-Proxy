@@ -10,6 +10,7 @@ import CookieBanner from './components/CookieBanner';
 import MobileLayout from './components/MobileLayout';
 import { useIsMobile } from './hooks/useIsMobile';
 import { generatePDF, getGridInfo, PAPER_FORMATS, nextBleedMode } from './utils/pdfGenerator';
+import { DEFAULT_PROFILE_ID, UPLOAD_ID, getProfileMeta, loadBundledProfileBytes } from './utils/iccProfiles';
 import { buildDeckList } from './utils/scryfall';
 import { IconFile, IconAlert, IconTrash, IconDownload, IconImage, IconPlus, Logo } from './components/icons';
 
@@ -44,7 +45,12 @@ export default function App() {
   // è persistito (binario; si ri-carica a sessione, come le immagini).
   const [colorMode, setColorMode] = useState(() => (localStorage.getItem('ip:colorMode') === 'cmyk' ? 'cmyk' : 'rgb'));
   const [renderIntent, setRenderIntent] = useState(() => (localStorage.getItem('ip:renderIntent') === 'perceptual' ? 'perceptual' : 'relative'));
-  const [iccProfile, setIccProfile] = useState(null); // { bytes:Uint8Array, name, space }
+  // Profilo CMYK: id incluso ('fogra39'…) o 'upload'. Persistito (solo l'id).
+  const [iccProfileId, setIccProfileId] = useState(() => {
+    const v = localStorage.getItem('ip:iccProfileId');
+    return v === UPLOAD_ID || getProfileMeta(v) ? v : DEFAULT_PROFILE_ID;
+  });
+  const [uploadedIcc, setUploadedIcc] = useState(null); // { bytes, name } profilo caricato (non persistito)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
@@ -77,7 +83,8 @@ export default function App() {
     localStorage.setItem('ip:sheetH', String(sheetH));
     localStorage.setItem('ip:colorMode', colorMode);
     localStorage.setItem('ip:renderIntent', renderIntent);
-  }, [formatKey, bleedMm, bleedStyle, dpi, quality, cardType, cardW, cardH, cropMarks, cropStyle, sheetUnit, sheetW, sheetH, colorMode, renderIntent]);
+    localStorage.setItem('ip:iccProfileId', iccProfileId);
+  }, [formatKey, bleedMm, bleedStyle, dpi, quality, cardType, cardW, cardH, cropMarks, cropStyle, sheetUnit, sheetW, sheetH, colorMode, renderIntent, iccProfileId]);
 
   // Revoca gli object URL residui allo smontaggio (evita leak di memoria).
   // imagesRef tiene il riferimento aggiornato senza ri-registrare l'effect.
@@ -121,6 +128,24 @@ export default function App() {
       const probe = new Image();
       probe.onload = () => setImages(prev => prev.map(p => (p.id === it.id ? { ...p, w: probe.naturalWidth } : p)));
       probe.src = it.preview;
+    });
+    // §2: per i JPEG CMYK nativi, leggi il profilo incorporato (APP2) una volta sola
+    // qui in add — per l'avviso "profilo diverso dalla destinazione" nell'export CMYK.
+    newItems.forEach((it) => {
+      (async () => {
+        try {
+          const raw = new Uint8Array(await it.file.arrayBuffer());
+          const { isCmykJpeg, extractIccFromJpeg } = await import('./utils/cmykRaster');
+          if (!isCmykJpeg(raw)) return;
+          let embeddedIccName = null;
+          const icc = extractIccFromJpeg(raw);
+          if (icc) {
+            const { readProfileInfo } = await import('./utils/cmykEngine');
+            embeddedIccName = (await readProfileInfo(icc)).name || null;
+          }
+          setImages(prev => prev.map(p => (p.id === it.id ? { ...p, colorKind: 'cmyk', embeddedIccName } : p)));
+        } catch { /* non bloccante */ }
+      })();
     });
   };
 
@@ -202,7 +227,9 @@ export default function App() {
       : `Saved ${cards} Scryfall card${cards > 1 ? 's' : ''} to proxoteca.txt.`);
   };
 
-  // Carica + valida un profilo ICC CMYK (.icc). Non persistito (binario).
+  // Carica + valida un profilo ICC CMYK personalizzato (.icc). Non persistito (binario).
+  // Rifiuta DeviceLink/abstract/named-color: hanno spazio CMYK ma non sono profili di
+  // destinazione → non usabili come conversione né come OutputIntent (colori sbagliati).
   const handleIccUpload = async (file) => {
     if (!file) return;
     setError(null);
@@ -210,23 +237,35 @@ export default function App() {
       const bytes = new Uint8Array(await file.arrayBuffer());
       const { readProfileInfo } = await import('./utils/cmykEngine');
       const info = await readProfileInfo(bytes);
+      const cls = (info.deviceClass || '').toLowerCase();
+      if (cls === 'link' || cls === 'abst' || cls === 'nmcl') {
+        throw new Error('This file is a DeviceLink / abstract profile, not a destination profile. Use an output (printer) ICC profile.');
+      }
       if (info.space !== 'CMYK') throw new Error('That ICC profile is not a CMYK profile.');
-      setIccProfile({ bytes, name: info.name || file.name, space: info.space });
+      setUploadedIcc({ bytes, name: info.name || file.name });
+      setIccProfileId(UPLOAD_ID);
     } catch (err) {
-      setIccProfile(null);
       setError(err.message || 'Could not read the ICC profile.');
     }
   };
-  const handleIccClear = () => setIccProfile(null);
+  const handleIccClear = () => { setUploadedIcc(null); setIccProfileId(DEFAULT_PROFILE_ID); };
 
   const handleGenerate = async () => {
     setError(null);
     setLoading(true);
     try {
       if (colorMode === 'cmyk') {
-        if (!iccProfile) throw new Error('Load the print shop ICC profile first (CMYK output).');
+        // Risolve il profilo attivo: incluso (fetch byte on-demand) o caricato.
+        let iccBytes, iccInfo, condition;
+        if (iccProfileId === UPLOAD_ID) {
+          if (!uploadedIcc) throw new Error('Load your ICC profile, or pick a bundled one.');
+          iccBytes = uploadedIcc.bytes; iccInfo = uploadedIcc.name; condition = 'CUSTOM';
+        } else {
+          const meta = getProfileMeta(iccProfileId) || getProfileMeta(DEFAULT_PROFILE_ID);
+          iccBytes = await loadBundledProfileBytes(meta.id); iccInfo = meta.info; condition = meta.condition;
+        }
         const { generatePDFCmyk } = await import('./utils/pdfGeneratorCmyk');
-        await generatePDFCmyk(images, formatKey, bleedMm, dpi, bleedStyle, cardW, cardH, cropMarks, cropStyle, customSheet, iccProfile.bytes, iccProfile.name, renderIntent);
+        await generatePDFCmyk(images, formatKey, bleedMm, dpi, bleedStyle, cardW, cardH, cropMarks, cropStyle, customSheet, iccBytes, iccInfo, renderIntent, condition);
       } else {
         await generatePDF(images, formatKey, bleedMm, dpi, bleedStyle, cardW, cardH, cropMarks, cropStyle, customSheet, quality);
       }
@@ -248,6 +287,13 @@ export default function App() {
   const missing = images.length === 0 || perPage === 0 ? 0 : (perPage - (images.length % perPage)) % perPage;
   // Carte la cui sorgente non regge il DPI scelto — stessa soglia del marker "!" nel preview.
   const lowResCount = images.reduce((n, it) => n + (it.w && it.w < dpi * 0.5 * (cardW / 25.4) ? 1 : 0), 0);
+  // §2: nome del profilo di destinazione attivo + n. carte CMYK native con profilo
+  // incorporato DIVERSO (confronto descrizione lcms ↔ descrizione lcms, normalizzato).
+  const targetProfileName = iccProfileId === UPLOAD_ID ? (uploadedIcc?.name || '') : (getProfileMeta(iccProfileId)?.info || '');
+  const norm = (s) => (s || '').trim().toLowerCase();
+  const profileMismatchCount = colorMode === 'cmyk'
+    ? images.reduce((n, it) => n + (it.embeddedIccName && norm(it.embeddedIccName) !== norm(targetProfileName) ? 1 : 0), 0)
+    : 0;
 
   const isMobile = useIsMobile();
 
@@ -258,7 +304,8 @@ export default function App() {
     cropStyle, setCropStyle, sheetUnit, setSheetUnit, sheetW, setSheetW, sheetH, setSheetH,
     customSheet, lowResCount, quality, setQuality,
     colorMode, setColorMode, renderIntent, setRenderIntent,
-    iccProfile, onIccUpload: handleIccUpload, onIccClear: handleIccClear,
+    iccProfileId, setIccProfileId, uploadedIcc, onIccUpload: handleIccUpload, onIccClear: handleIccClear,
+    profileMismatchCount,
   };
   const previewProps = {
     images, formatKey, bleedMm, bleedStyle, dpi, cardW, cardH, showCrop: cropMarks, cropStyle,

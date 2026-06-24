@@ -34,7 +34,15 @@ export const INTENTS = {
   perceptual: INTENT_PERCEPTUAL,
 };
 
-/** Legge spazio colore + descrizione di un profilo ICC (validazione/avvisi). */
+// Classe del dispositivo dal header ICC (offset 12-15): 'prtr' output, 'mntr'
+// display, 'scnr' input, 'link' DeviceLink, 'abst' astratto, 'nmcl' named color,
+// 'spac' color space. lcms-wasm non espone cmsGetDeviceClass → la leggo dai byte.
+function readDeviceClass(iccBytes) {
+  if (!iccBytes || iccBytes.length < 16) return '';
+  return String.fromCharCode(iccBytes[12], iccBytes[13], iccBytes[14], iccBytes[15]).trim();
+}
+
+/** Legge classe dispositivo + spazio colore + descrizione di un profilo ICC. */
 export async function readProfileInfo(iccBytes) {
   const lcms = await getLcms();
   const p = lcms.cmsOpenProfileFromMem(iccBytes, iccBytes.byteLength);
@@ -43,7 +51,7 @@ export async function readProfileInfo(iccBytes) {
   let name = '';
   try { name = lcms.cmsGetProfileInfoASCII(p, cmsInfoDescription, 'en', 'US'); } catch { /* opzionale */ }
   lcms.cmsCloseProfile(p);
-  return { space, name };
+  return { space, name, deviceClass: readDeviceClass(iccBytes) };
 }
 
 /**

@@ -1,4 +1,5 @@
 import { PAPER_FORMATS, getGridInfo } from '../utils/pdfGenerator';
+import { BUNDLED_PROFILES, UPLOAD_ID } from '../utils/iccProfiles';
 
 const DPI_OPTIONS = [150, 300, 600, 800, 1000, 1200];
 const BLEED_OPTIONS = [0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0];
@@ -37,7 +38,8 @@ export default function PageSettings({
     sheetUnit, setSheetUnit, sheetW, setSheetW, sheetH, setSheetH, customSheet,
     lowResCount = 0, quality = 0.85, setQuality,
     colorMode = 'rgb', setColorMode, renderIntent = 'relative', setRenderIntent,
-    iccProfile = null, onIccUpload, onIccClear,
+    iccProfileId = 'fogra39', setIccProfileId, uploadedIcc = null, onIccUpload, onIccClear,
+    profileMismatchCount = 0,
 }) {
     const { cols, rows, perPage } = getGridInfo(formatKey, bleedMm, cardW, cardH, customSheet);
     const [pw, ph] = formatKey === 'custom' && customSheet
@@ -146,19 +148,39 @@ export default function PageSettings({
                         {colorMode === 'cmyk' && (
                             <div className="cmyk-box">
                                 <span className="cmyk-tag">PDF/X-1a:2003 · DeviceCMYK · embedded ICC</span>
-                                <div className="icc-row">
-                                    <label className="btn-icc">
-                                        <input type="file" accept=".icc,.icm" hidden
-                                            onChange={e => { const f = e.target.files?.[0]; if (f) onIccUpload?.(f); e.target.value = ''; }} />
-                                        {iccProfile ? 'Change ICC…' : 'Load ICC profile…'}
-                                    </label>
-                                    {iccProfile && (
-                                        <button type="button" className="icc-clear" onClick={() => onIccClear?.()} aria-label="Remove ICC profile">×</button>
-                                    )}
-                                </div>
-                                {iccProfile
-                                    ? <p className="field-hint icc-ok">✓ {iccProfile.name}</p>
-                                    : <p className="field-hint">Upload your print shop’s CMYK ICC profile. It’s embedded as the document OutputIntent and used for the RGB→CMYK conversion.</p>}
+                                {/* Profilo ICC: incluso (default pronto) o caricato dall'utente */}
+                                <SelectField label="ICC profile" value={iccProfileId} onChange={e => setIccProfileId(e.target.value)}>
+                                    {BUNDLED_PROFILES.map(p => (
+                                        <option key={p.id} value={p.id}>{p.label}</option>
+                                    ))}
+                                    <option value={UPLOAD_ID}>Upload custom .icc…</option>
+                                </SelectField>
+                                {iccProfileId === UPLOAD_ID && (
+                                    <>
+                                        <div className="icc-row">
+                                            <label className="btn-icc">
+                                                <input type="file" accept=".icc,.icm" hidden
+                                                    onChange={e => { const f = e.target.files?.[0]; if (f) onIccUpload?.(f); e.target.value = ''; }} />
+                                                {uploadedIcc ? 'Change ICC…' : 'Load .icc / .icm…'}
+                                            </label>
+                                            {uploadedIcc && (
+                                                <button type="button" className="icc-clear" onClick={() => onIccClear?.()} aria-label="Remove ICC profile">×</button>
+                                            )}
+                                        </div>
+                                        {uploadedIcc
+                                            ? <p className="field-hint icc-ok">✓ {uploadedIcc.name}</p>
+                                            : <p className="field-hint">Upload your print shop’s CMYK output profile (a DeviceLink/abstract profile is rejected).</p>}
+                                    </>
+                                )}
+                                {profileMismatchCount > 0 && (
+                                    <div className="lowres-warn">
+                                        <span className="lowres-mark" aria-hidden="true">!</span>
+                                        <span>
+                                            {profileMismatchCount} native CMYK card{profileMismatchCount > 1 ? 's have' : ' has'} an embedded
+                                            profile different from the destination — colours may not match. They’re passed through unconverted.
+                                        </span>
+                                    </div>
+                                )}
                                 <SelectField label="Rendering intent" value={renderIntent} onChange={e => setRenderIntent(e.target.value)}>
                                     <option value="relative">Relative Colorimetric + BPC</option>
                                     <option value="perceptual">Perceptual</option>

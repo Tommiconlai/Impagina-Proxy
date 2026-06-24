@@ -120,7 +120,7 @@ function drawCropMarksPdf(page, ops, x, y, bleed, limits, cardW, cardH, style, p
  * Firma allineata a generatePDF + (iccBytes, iccName, intentKey).
  * iccBytes: Uint8Array del profilo CMYK della tipografia (obbligatorio).
  */
-export async function buildCmykPdfBytes(items, formatKey, bleedMm, dpi = 300, bleedStyle = 'auto', cardW = CARD_W, cardH = CARD_H, cropMarks = true, cropStyle = 'lines', customSheet = null, iccBytes = null, iccName = 'CMYK', intentKey = 'relative') {
+export async function buildCmykPdfBytes(items, formatKey, bleedMm, dpi = 300, bleedStyle = 'auto', cardW = CARD_W, cardH = CARD_H, cropMarks = true, cropStyle = 'lines', customSheet = null, iccBytes = null, iccName = 'CMYK', intentKey = 'relative', condition = null) {
   if (!items || items.length === 0) throw new Error('No images selected.');
   if (!iccBytes || !iccBytes.length) throw new Error('Load the print shop ICC profile first.');
 
@@ -152,12 +152,15 @@ export async function buildCmykPdfBytes(items, formatKey, bleedMm, dpi = 300, bl
   // OutputIntent + ICC incorporato (l'unico ICC del documento, /N 4 = CMYK).
   const iccStream = doc.context.flateStream(iccBytes, { N: 4 });
   const iccRef = doc.context.register(iccStream);
-  const condId = (iccName || 'CMYK').slice(0, 64);
+  // OutputConditionIdentifier = sigla della condizione (es. FOGRA39) se nota,
+  // altrimenti 'CUSTOM'. Info = descrizione leggibile del profilo.
+  const condId = (condition || 'CUSTOM').slice(0, 64);
+  const infoStr = (iccName || condId).slice(0, 128);
   const outputIntent = doc.context.obj({
     Type: 'OutputIntent',
     S: 'GTS_PDFX',
     OutputConditionIdentifier: PDFString.of(condId),
-    Info: PDFString.of(condId),
+    Info: PDFString.of(infoStr),
     RegistryName: PDFString.of('http://www.color.org'),
     DestOutputProfile: iccRef,
   });
