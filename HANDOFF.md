@@ -12,7 +12,8 @@ trading-card proxies; card size is 63×88 mm.
 ## Stack
 
 - Vite 7, React 19, `react-dropzone`, `jspdf` (pulls `html2canvas`) for the RGB/screen PDF
-- `pdf-lib` + `lcms-wasm` (Little-CMS WASM) for the **CMYK / PDF-X-1a** print export (both lazy-loaded)
+- `pdf-lib` + `lcms-wasm` (Little-CMS WASM) for the **CMYK / PDF-X-1a** print export (both lazy-loaded);
+  a **vendored** jpeg-js decoder (`src/utils/vendor/jpegCmykDecoder.js`, Apache-2.0) for native CMYK JPEGs
 - Vanilla CSS with design tokens in `src/index.css` (no Tailwind / CSS-in-JS)
 
 ## Run
@@ -58,7 +59,9 @@ before restarting.
 | `src/components/BottomTabBar.jsx` | 3-tab nav (Cards/Settings/Export); reuses `IconLayout`/`IconFile` + an inline sliders icon |
 | `src/components/CardActionSheet.jsx` | Mobile bottom sheet for a tapped card: Change art · Duplicate · **Bleed: <mode>** (cycles none/generated/in-art, sheet stays open) · Remove. Bleed label via `bleedLabel` (pdfGenerator) |
 | `src/utils/cmykEngine.js` | **CMYK colour engine** (lazy). Wrapper su `lcms-wasm`: `instantiate()` singleton col WASM via `import wasmURL from 'lcms-wasm/dist/lcms.wasm?url'` (Vite emette `dist/assets/lcms-*.wasm`, base `./` → Pages-safe). `readProfileInfo(bytes)` → `{space,name}` (valida che sia CMYK); `makeRgbToCmyk(iccBytes, intentKey)` → `{convert(rgbaBytes,nPixels), close()}` (sorgente = sRGB built-in, dest = profilo tipografia; `cmsDoTransform` accetta il buffer RGBA di `getImageData` diretto, output CMYK 8-bit 0=no ink). Intenti: `relative` (RelCol+BPC) / `perceptual` |
-| `src/utils/pdfGeneratorCmyk.js` | **CMYK / PDF-X-1a:2003 exporter** (lazy), additivo — il path jsPDF RGB resta intatto. Riusa `getGridInfo`/`cropMarkSpan`/`drawCardWithBleed` da `pdfGenerator.js`. Per carta: render cella su canvas RGB (stessa pipeline RGB, sfondo nero dietro i PNG) → `getImageData` → `cmykEngine` → bytes CMYK → image XObject **raw FlateDecode `/DeviceCMYK`** (`doc.context.flateStream`+`register`, posizionato con `newXObject`+`pushOperators(concatTransformationMatrix…drawObject)`). Aggiunge **OutputIntent** `/GTS_PDFX` con ICC incorporato (`/N 4`), Info `GTS_PDFXVersion`+`Trapped /False`, `TrimBox`=`BleedBox`=`MediaBox`=foglio, crocini vettoriali in `cmyk(0,0,0,1)`. **Salva con `useObjectStreams:false`** (xref classico, niente ObjStm/XRef-stream = feature 1.5+ vietate in X-1a) e **patch del byte minor header `%PDF-1.7`→`1.4`** (pdf-lib hardcoda 1.7, nessuna API). `buildCmykPdfBytes(...)` ritorna i byte (testabile); `generatePDFCmyk(...)` li scarica. **v1 = solo arte RGB** (Scryfall/upload RGB→CMYK); i file CMYK nativi sono Fase 2 (non gestiti) |
+| `src/utils/pdfGeneratorCmyk.js` | **CMYK / PDF-X-1a:2003 exporter** (lazy), additivo — il path jsPDF RGB resta intatto. Riusa `getGridInfo`/`cropMarkSpan`/`drawCardWithBleed` da `pdfGenerator.js`. Per carta: render cella su canvas RGB (stessa pipeline RGB, sfondo nero dietro i PNG) → `getImageData` → `cmykEngine` → bytes CMYK → image XObject **raw FlateDecode `/DeviceCMYK`** (`doc.context.flateStream`+`register`, posizionato con `newXObject`+`pushOperators(concatTransformationMatrix…drawObject)`). Aggiunge **OutputIntent** `/GTS_PDFX` con ICC incorporato (`/N 4`), Info `GTS_PDFXVersion`+`Trapped /False`, `TrimBox`=`BleedBox`=`MediaBox`=foglio, crocini vettoriali in `cmyk(0,0,0,1)`. **Salva con `useObjectStreams:false`** (xref classico, niente ObjStm/XRef-stream = feature 1.5+ vietate in X-1a) e **patch del byte minor header `%PDF-1.7`→`1.4`** (pdf-lib hardcoda 1.7, nessuna API). `buildCmykPdfBytes(...)` ritorna i byte (testabile); `generatePDFCmyk(...)` li scarica. **Routing per-carta:** JPEG CMYK nativo (rilevato da `isCmykJpeg`) → `decodeCMYK`+`cmykCellBuffer`, **passthrough senza conversione** (numeri preservati esatti); tutto il resto → RGB su canvas + lcms. `getConv` è lazy (set di soli CMYK non carica il WASM lcms) |
+| `src/utils/cmykRaster.js` | **Fase 2** — `isCmykJpeg(bytes)` (sniff marker SOFn → Nf===4; PNG/non-JPEG → false) + `cmykCellBuffer(dec, cardWmm, cardHmm, bleedMm, mode)`: genera l'abbondanza sui **canali grezzi CMYK senza canvas** (riflessione/replica di pixel, lossless). Modi full/none/black/stretch/mirror; lo scaling alla cella fisica lo fa la matrice PDF (RIP ricampiona), quindi i pixel del trim restano 1:1 |
+| `src/utils/vendor/jpegCmykDecoder.js` | **Vendored** da jpeg-js (Apache-2.0, (c) 2011 notmasteryet); `eslint-disable`. jpeg-js espone solo `decode()`→RGB; qui si aggiunge `decodeCMYK(bytes)` che chiama `JpegImage.parse`+`getData` (case 4) → CMYK 8-bit interleaved in **convenzione DeviceCMYK (0=no ink)**, gestendo l'inversione Adobe (APP14) e l'eventuale YCCK. Browser-safe (solo `Uint8Array`, niente `Buffer`) |
 | `src/utils/pdfGenerator.js` | Grid math (`getGridInfo(formatKey, bleedMm, cardW=63, cardH=88, customSheet=null)`; `formatKey==='custom'` uses `customSheet` mm dims, else `PAPER_FORMATS`) + `generatePDF(items, formatKey, bleedMm, dpi, bleedStyle, cardW, cardH, cropMarks, cropStyle, customSheet)` (jspdf, dynamically imported) + `drawCardWithBleed` (stretch/mirror/black bleed) + `resolveBleedMode` (per-card mode × global style) + `drawCropMarks(…, style)` (`lines`/`corners`) + `cropMarkSpan` (clamped crop marks) |
 | `src/utils/scryfall.js` | `parseCardList` (text → `{qty,name,set,collector}`; collector keeps **original case** — Scryfall `/cards/collection` is case-sensitive on it, e.g. The List `TMP-294`) + `fetchScryfallImages` (`/cards/collection` batched, printing-pinned via name\|set\|collector keys, downloads PNGs as `File`; DFC → both faces) + `fetchPrints` + `downloadAsFile` + `fetchDeckList` (deck link → text, via `corsproxy.io`) + `deckLine(qty,name,set,cn)` (builds `qty Name (SET) cn` so deck links pin the **edition chosen in the deck**) + `buildDeckList(items)` (placed cards → deck-list text for "Save list"; front faces only, custom uploads excluded) |
 | `src/utils/scryfall.selfcheck.js` | `node`-runnable assert check for `parseCardList` (no framework). Run: `node src/utils/scryfall.selfcheck.js` |
@@ -89,7 +92,22 @@ Tokens at the top of `src/index.css`. Also recorded in this project's Claude mem
 
 ## Done recently
 
-- **CMYK / PDF-X-1a print export — Phase 1 (most recent):** new **Output: RGB (screen) / CMYK (print)**
+- **CMYK export — Phase 2: native CMYK JPEG files (most recent):** native CMYK JPEGs (Photoshop/
+  Illustrator/`magick`) now pass through to the PDF **without an RGB round-trip** — exact ink numbers,
+  already in the shop's profile, no lcms conversion. New `utils/cmykRaster.js` (`isCmykJpeg` SOFn sniff +
+  raw-channel bleed `cmykCellBuffer`, no canvas) + a **vendored** jpeg-js decoder
+  (`utils/vendor/jpegCmykDecoder.js`) exposing `decodeCMYK` (jpeg-js only gives RGB; `getData` case-4 yields
+  DeviceCMYK, handling the **Adobe APP14 inversion**). The CMYK exporter routes per-card: CMYK JPEG →
+  decode+raw-bleed passthrough; everything else → the Phase-1 RGB→canvas→lcms path. `getConv` (lcms) is now
+  lazy, so an all-native-CMYK set never loads the colour WASM. jpeg-js is **vendored, not a dependency**
+  (no `node_modules` import). **Verified:** minted a real Adobe-style CMYK JPEG (Pillow, known C/M/Y/K
+  swatches); `decodeCMYK` returns them **exactly** (Cyan→[255,0,0,0], …, white→0), and end-to-end through
+  the real exporter the **inflated DeviceCMYK image in the output PDF preserves those values byte-for-byte**
+  (200×280×4, no inversion); raw-bleed modes unit-checked; mixed RGB+CMYK sheet → 2 DeviceCMYK images, still
+  %PDF-1.4 / OutputIntent / no RGB / no ObjStm. Lint + build green. (Still unverified here: **Acrobat
+  Preflight / print-shop proof**, and **YCCK** transformCode=2 files — the swatch was transformCode=0,
+  though the YCCK branch is jpeg-js's well-tested path.)
+- **CMYK / PDF-X-1a print export — Phase 1:** new **Output: RGB (screen) / CMYK (print)**
   toggle in the "Print" group. CMYK produces a **press-ready PDF/X-1a:2003** (DeviceCMYK images, one
   embedded ICC as OutputIntent). The RGB/jsPDF path is **untouched** (additive). New deps `pdf-lib` +
   `lcms-wasm`, both **lazy-loaded** (separate chunks + `lcms.wasm`), so RGB-only users don't pay.
@@ -107,8 +125,8 @@ Tokens at the top of `src/index.css`. Also recorded in this project's Claude mem
     `Trapped /False`, DeviceCMYK images, TrimBox/BleedBox, and **zero** RGB/ICCBased-CS/transparency.
     Tested end-to-end through the real UI handler with FOGRA39. Lint + build green.
   - **NOT verified / known gaps:** no **Acrobat Preflight** or **print-shop proof** was possible here —
-    that sign-off (the real acceptance gate, doc §12) is still the user's. **Phase 2** (native CMYK JPEG
-    files, Adobe-APP14-aware decode, no-canvas mirror) is **not built** — v1 is RGB-art→CMYK only.
+    that sign-off (the real acceptance gate, doc §12) is still the user's. (**Phase 2** native CMYK JPEG
+    files are now done — see the entry above.)
     **No bundled profiles** (licensing): upload-only; bundling free **ECI** profiles is a follow-up.
     Soft-proof preview (§9) deferred to a warning. WASM/ICC load on the **live Pages URL** uses the same
     relative-`base` lazy-chunk mechanism as jspdf (works in dev) but wasn't tested on the deployed site.
@@ -350,13 +368,13 @@ All verified live + `npm run lint` clean + `npm run build` green.
 
 ## Known issues / TODO
 
-- **CMYK export is Phase 1 only.** Follow-ups (spec in user's `CMYK-PRINT-EXPORT.md`): **Phase 2** native
-  CMYK JPEG files (4-channel decode, Adobe APP14 inversion, mirror bleed on raw CMYK channels — needs a
-  CMYK JPEG decoder, e.g. `@jsquash/jpeg`, the spec's risk #1, not yet added); **bundle free ECI profiles**
-  for an out-of-box default (today: upload-only — CMYK export is disabled until an ICC is loaded); **Phase 4
-  soft-proof** preview (today: a one-line RGB-preview warning). **Acrobat/print-shop validation is unrun**
-  here — verify a real sheet before relying on it. Raw-Flate DeviceCMYK is **lossless but heavy**
-  (low-tens-of-MB/page at high DPI); optional CMYK-JPEG/DCTDecode path is a size follow-up.
+- **CMYK export: Phases 1+2 done; remaining follow-ups** (spec in user's `CMYK-PRINT-EXPORT.md`):
+  **bundle free ECI profiles** for an out-of-box default (today: upload-only — CMYK export needs an ICC
+  loaded first); **Phase 4 soft-proof** preview (today: a one-line RGB-preview warning); **YCCK** CMYK
+  JPEGs (transformCode=2) unverified (handled by the vendored decoder's tested path, but not exercised
+  with a real file). **Acrobat Preflight / print-shop proof is unrun here** — verify a real sheet before
+  relying on it. Raw-Flate DeviceCMYK is **lossless but heavy** (low-tens-of-MB/page at high DPI);
+  optional CMYK-JPEG/DCTDecode path is a size follow-up.
 - **Deck-link import depends on `corsproxy.io`** (a free public CORS proxy) for Moxfield /
   Archidekt / Tappedout. If it rate-limits or dies, swap `CORS_PROXY` in `utils/scryfall.js`
   or add a tiny backend. The Tappedout parser uses a documented `?fmt=txt` shape but wasn't

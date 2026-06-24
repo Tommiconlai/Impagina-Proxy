@@ -18,6 +18,8 @@
  */
 
 import { getGridInfo, cropMarkSpan, resolveBleedMode, drawCardWithBleed, CARD_W, CARD_H } from './pdfGenerator.js';
+import { isCmykJpeg, cmykCellBuffer } from './cmykRaster.js';
+import { decodeCMYK } from './vendor/jpegCmykDecoder.js';
 
 const MM_TO_PT = 72 / 25.4;
 
@@ -129,7 +131,10 @@ export async function buildCmykPdfBytes(items, formatKey, bleedMm, dpi = 300, bl
   const [pdfLib, engine] = await Promise.all([import('pdf-lib'), import('./cmykEngine.js')]);
   const { PDFDocument, PDFName, PDFString, cmyk, pushGraphicsState, popGraphicsState, concatTransformationMatrix, drawObject } = pdfLib;
 
-  const conv = await engine.makeRgbToCmyk(iccBytes, intentKey);
+  // Convertitore RGB→CMYK (lcms) creato solo se serve: un set di soli file CMYK
+  // nativi non carica il WASM.
+  let conv = null;
+  const getConv = async () => conv || (conv = await engine.makeRgbToCmyk(iccBytes, intentKey));
 
   const doc = await PDFDocument.create();
 
@@ -181,10 +186,22 @@ export async function buildCmykPdfBytes(items, formatKey, bleedMm, dpi = 300, bl
       const ymm = offsetY + row * cellH; // dall'alto
 
       const item = items[imgIndex];
-      const imgEl = await loadImageElement(item.file);
       const mode = resolveBleedMode(item.bleedMode, bleedStyle);
-      const { data, w, h } = renderCellRGBA(imgEl, cellW, cellH, dpi, bleedMm, mode);
-      const cmykBytes = conv.convert(data, w * h); // RGBA -> CMYK 8-bit (4ch)
+
+      // Routing per spazio colore (Fase 2): JPEG CMYK nativo → canali grezzi,
+      // niente conversione (numeri preservati); tutto il resto → RGB su canvas + lcms.
+      let cmykBytes, w, h;
+      const raw = new Uint8Array(await item.file.arrayBuffer());
+      if (isCmykJpeg(raw)) {
+        const dec = decodeCMYK(raw); // {width,height,data} DeviceCMYK (0=no ink)
+        const cell = cmykCellBuffer(dec, cardW, cardH, bleedMm, mode);
+        cmykBytes = cell.data; w = cell.w; h = cell.h;
+      } else {
+        const imgEl = await loadImageElement(item.file);
+        const cell = renderCellRGBA(imgEl, cellW, cellH, dpi, bleedMm, mode);
+        cmykBytes = (await getConv()).convert(cell.data, cell.w * cell.h); // RGBA → CMYK 8-bit
+        w = cell.w; h = cell.h;
+      }
 
       const imgStream = doc.context.flateStream(cmykBytes, {
         Type: 'XObject',
@@ -222,7 +239,7 @@ export async function buildCmykPdfBytes(items, formatKey, bleedMm, dpi = 300, bl
     }
   }
 
-  conv.close();
+  if (conv) conv.close();
 
   // useObjectStreams:false → tabella xref classica + oggetti in chiaro: gli
   // object/xref stream sono feature PDF 1.5+, VIETATE in PDF/X-1a:2003 (PDF 1.4).

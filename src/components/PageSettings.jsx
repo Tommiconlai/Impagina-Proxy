@@ -163,7 +163,7 @@ export default function PageSettings({
                                     <option value="relative">Relative Colorimetric + BPC</option>
                                     <option value="perceptual">Perceptual</option>
                                 </SelectField>
-                                <p className="field-hint">Your print shop may prefer a specific intent. Native CMYK files aren’t supported yet — RGB art only (Scryfall/uploads).</p>
+                                <p className="field-hint">Used for RGB art (Scryfall/RGB uploads). Native CMYK JPEGs are passed through untouched (already in your profile) — the intent doesn’t apply to them. Your shop may prefer a specific intent.</p>
                                 <p className="field-hint">Note: the on-screen preview is RGB. Very saturated colours print less vivid in CMYK (smaller gamut) — that’s normal.</p>
                             </div>
                         )}
