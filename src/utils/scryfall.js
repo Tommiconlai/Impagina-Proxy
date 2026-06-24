@@ -13,6 +13,31 @@ const IMG_CONCURRENCY = 8; // fetch immagini in parallelo
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Fetch verso Scryfall con retry su 429/5xx e errori di rete. I 503/Cloudflare
+// tornano senza header CORS → nel browser appaiono come "Failed to fetch" opaco:
+// qui ritentiamo con backoff e, se persiste, diamo un messaggio chiaro.
+async function scryfallFetch(url, opts, tries = 3) {
+  let lastErr;
+  for (let i = 0; i < tries; i++) {
+    let res;
+    try {
+      res = await fetch(url, opts);
+    } catch (e) {
+      lastErr = e; // rete/CORS → ritenta
+      if (i < tries - 1) { await sleep(500 * (i + 1)); continue; }
+      throw new Error('Could not reach Scryfall (it may be busy or down). Please try again shortly.');
+    }
+    if (res.ok) return res;
+    if (res.status === 429 || res.status >= 500) {
+      lastErr = new Error(`Scryfall responded ${res.status}`);
+      if (i < tries - 1) { await sleep(500 * (i + 1)); continue; }
+      throw new Error(`Scryfall is temporarily unavailable (${res.status}). Please try again shortly.`);
+    }
+    throw new Error(`Scryfall responded ${res.status}`); // 4xx: non ritentabile
+  }
+  throw lastErr || new Error('Scryfall request failed.');
+}
+
 function chunk(arr, n) {
   const out = [];
   for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
@@ -154,12 +179,11 @@ export async function fetchScryfallImages(entries, onProgress) {
   const reg = (k, card) => { if (!cardByKey.has(k)) cardByKey.set(k, card); };
   const parts = chunk(identifiers, CHUNK);
   for (let p = 0; p < parts.length; p++) {
-    const res = await fetch(COLLECTION_URL, {
+    const res = await scryfallFetch(COLLECTION_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ identifiers: parts[p] }),
     });
-    if (!res.ok) throw new Error(`Scryfall responded ${res.status}`);
     const json = await res.json();
     for (const card of json.data || []) {
       const s = (card.set || '').toLowerCase();
@@ -235,10 +259,28 @@ export async function fetchScryfallImages(entries, onProgress) {
 
 // ── Import lista da link deck (Moxfield / Archidekt / Tappedout) ───────────
 // Questi siti non mandano header CORS e l'app è statica (niente backend) → uso
-// un proxy CORS pubblico. ponytail: corsproxy.io gratis; se muore o limita,
-// cambiare solo questa costante (o aggiungere un backend).
-const CORS_PROXY = 'https://corsproxy.io/?url=';
-const px = (u) => CORS_PROXY + encodeURIComponent(u);
+// proxy CORS pubblici. ponytail: un singolo proxy muore/limita spesso (corsproxy.io
+// è passato a richiedere una key), quindi provo una catena di fallback: il primo
+// che risponde ok vince. Tutti restituiscono il body raw. Aggiungere/riordinare qui.
+const CORS_PROXIES = [
+  (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  (u) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`,
+  (u) => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
+];
+
+// Prova ogni proxy finché uno risponde ok; ritorna la Response. Lancia un errore
+// leggibile se falliscono tutti (proxy giù o deck privato/inesistente).
+async function fetchViaProxy(targetUrl) {
+  let lastErr;
+  for (const wrap of CORS_PROXIES) {
+    try {
+      const r = await fetch(wrap(targetUrl));
+      if (r.ok) return r;
+      lastErr = new Error(`proxy responded ${r.status}`);
+    } catch (e) { lastErr = e; }
+  }
+  throw new Error(`Could not reach the deck site (CORS proxies failed${lastErr ? `: ${lastErr.message}` : ''}). Try again later, or paste the list by hand.`);
+}
 
 // "qty Nome (SET) cn" — set+collector pinnano la stampa SCELTA NEL DECK; assenti →
 // solo nome (Scryfall sceglie la stampa di default). Il tail lo riparsa parseCardList.
@@ -274,8 +316,7 @@ export function buildDeckList(items) {
 }
 
 async function archidektList(id) {
-  const r = await fetch(px(`https://archidekt.com/api/decks/${id}/`));
-  if (!r.ok) throw new Error(`Archidekt responded ${r.status}`);
+  const r = await fetchViaProxy(`https://archidekt.com/api/decks/${id}/`);
   const j = await r.json();
   return (j.cards || [])
     .filter((c) => !(c.categories || []).some((cat) => /maybe|sideboard|considering/i.test(cat)))
@@ -285,8 +326,7 @@ async function archidektList(id) {
 }
 
 async function moxfieldList(pubId) {
-  const r = await fetch(px(`https://api2.moxfield.com/v3/decks/all/${pubId}`));
-  if (!r.ok) throw new Error(`Moxfield responded ${r.status}`);
+  const r = await fetchViaProxy(`https://api2.moxfield.com/v3/decks/all/${pubId}`);
   const j = await r.json();
   const out = [];
   const boards = j.boards || {};
@@ -301,8 +341,7 @@ async function moxfieldList(pubId) {
 }
 
 async function tappedoutList(slug) {
-  const r = await fetch(px(`https://tappedout.net/mtg-decks/${slug}/?fmt=txt`));
-  if (!r.ok) throw new Error(`Tappedout responded ${r.status}`);
+  const r = await fetchViaProxy(`https://tappedout.net/mtg-decks/${slug}/?fmt=txt`);
   const txt = await r.text();
   // fmt=txt è già "1 Nome" per riga; tieni solo le righe che iniziano con la quantità.
   return txt.replace(/\r/g, '').split('\n').filter((l) => /^\d+\s/.test(l.trim())).join('\n');

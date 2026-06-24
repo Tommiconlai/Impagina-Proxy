@@ -65,7 +65,7 @@ before restarting.
 | `src/utils/cmykRaster.js` | **Fase 2** — `isCmykJpeg(bytes)` (sniff marker SOFn → Nf===4; PNG/non-JPEG → false) + `cmykCellBuffer(dec, cardWmm, cardHmm, bleedMm, mode)`: genera l'abbondanza sui **canali grezzi CMYK senza canvas** (riflessione/replica di pixel, lossless). Modi full/none/black/stretch/mirror; lo scaling alla cella fisica lo fa la matrice PDF (RIP ricampiona), quindi i pixel del trim restano 1:1 |
 | `src/utils/vendor/jpegCmykDecoder.js` | **Vendored** da jpeg-js (Apache-2.0, (c) 2011 notmasteryet); `eslint-disable`. jpeg-js espone solo `decode()`→RGB; qui si aggiunge `decodeCMYK(bytes)` che chiama `JpegImage.parse`+`getData` (case 4) → CMYK 8-bit interleaved in **convenzione DeviceCMYK (0=no ink)**, gestendo l'inversione Adobe (APP14) e l'eventuale YCCK. Browser-safe (solo `Uint8Array`, niente `Buffer`) |
 | `src/utils/pdfGenerator.js` | Grid math (`getGridInfo(formatKey, bleedMm, cardW=63, cardH=88, customSheet=null)`; `formatKey==='custom'` uses `customSheet` mm dims, else `PAPER_FORMATS`) + `generatePDF(items, formatKey, bleedMm, dpi, bleedStyle, cardW, cardH, cropMarks, cropStyle, customSheet)` (jspdf, dynamically imported) + `drawCardWithBleed` (stretch/mirror/black bleed) + `resolveBleedMode` (per-card mode × global style) + `drawCropMarks(…, style)` (`lines`/`corners`) + `cropMarkSpan` (clamped crop marks) |
-| `src/utils/scryfall.js` | `parseCardList` (text → `{qty,name,set,collector}`; collector keeps **original case** — Scryfall `/cards/collection` is case-sensitive on it, e.g. The List `TMP-294`) + `fetchScryfallImages` (`/cards/collection` batched, printing-pinned via name\|set\|collector keys, downloads PNGs as `File`; DFC → both faces) + `fetchPrints` + `downloadAsFile` + `fetchDeckList` (deck link → text, via `corsproxy.io`) + `deckLine(qty,name,set,cn)` (builds `qty Name (SET) cn` so deck links pin the **edition chosen in the deck**) + `buildDeckList(items)` (placed cards → deck-list text for "Save list"; front faces only, custom uploads excluded) |
+| `src/utils/scryfall.js` | `parseCardList` (text → `{qty,name,set,collector}`; collector keeps **original case** — Scryfall `/cards/collection` is case-sensitive on it, e.g. The List `TMP-294`) + `fetchScryfallImages` (`/cards/collection` batched, printing-pinned via name\|set\|collector keys, downloads PNGs as `File`; DFC → both faces) + `fetchPrints` + `downloadAsFile` + `fetchDeckList` (deck link → text, via `fetchViaProxy` = `CORS_PROXIES` fallback chain: allorigins → codetabs → corsproxy.io) + `scryfallFetch` (retry 429/5xx + network, clear error on Scryfall outage) + `deckLine(qty,name,set,cn)` (builds `qty Name (SET) cn` so deck links pin the **edition chosen in the deck**) + `buildDeckList(items)` (placed cards → deck-list text for "Save list"; front faces only, custom uploads excluded) |
 | `src/utils/scryfall.selfcheck.js` | `node`-runnable assert check for `parseCardList` (no framework). Run: `node src/utils/scryfall.selfcheck.js` |
 | `src/components/icons.jsx` | Custom lucide-style SVG icon set (currentColor), incl. `IconPlus`, `IconDownload`, `IconCopy`, `IconFrame` + `Logo` (Proxoteca brandmark: gold-gradient circle + white burst, inline; same art as `public/favicon.svg`, used in the header) |
 | `src/index.css` | All styling + design tokens |
@@ -94,7 +94,15 @@ Tokens at the top of `src/index.css`. Also recorded in this project's Claude mem
 
 ## Done recently
 
-- **CMYK export — Phase 3 (bundled profiles, validation, mismatch warning, decoder self-check) (most recent):**
+- **Import resilience: CORS-proxy fallback + Scryfall retry (most recent):** the deck-link import used a single
+  `corsproxy.io` which started returning 403 (now key-gated) → "Failed to fetch". Replaced with a **fallback chain**
+  (`CORS_PROXIES`: allorigins → codetabs → corsproxy.io) via `fetchViaProxy` (first proxy that responds ok wins).
+  The direct Scryfall import was also failing with a CORS/`Failed to fetch` error caused by `api.scryfall.com`
+  returning **503 error pages without CORS headers** (a Scryfall-side outage, not an app bug): added `scryfallFetch`
+  (retry 429/5xx + network with backoff, clear "Scryfall may be busy or down" message). **Not live-tested from the
+  agent sandbox** (its network egress is blocked — that's why the agent's own probes 503'd); verify in a real
+  browser. Lint + build + parser self-check green.
+- **CMYK export — Phase 3 (bundled profiles, validation, mismatch warning, decoder self-check):**
   - **Bundled ICC profiles** (`utils/iccProfiles.js`): three ECI output profiles in `src/assets/icc/`
     (`ISOcoated_v2_eci.icc`=FOGRA39 **default**, `PSOcoated_v3.icc`=FOGRA51, `PSOuncoated_v3_FOGRA52.icc`=FOGRA52),
     imported `?url` (emitted to `dist/assets/`, fetched on demand, **not** inlined). The "Stampa" group now has an
@@ -407,10 +415,16 @@ All verified live + `npm run lint` clean + `npm run build` green.
   - **§5 soft-proof** (CMYK→monitor) and **§6 CMYK-JPEG/DCTDecode** size path are **optional**, not built (preview
     keeps the RGB warning; raw-Flate DeviceCMYK stays the lossless default, heavy at high DPI). Confirm the shop's
     preferred default profile + intent (spec §14) — default = FOGRA39 + RelCol+BPC.
-- **Deck-link import depends on `corsproxy.io`** (a free public CORS proxy) for Moxfield /
-  Archidekt / Tappedout. If it rate-limits or dies, swap `CORS_PROXY` in `utils/scryfall.js`
-  or add a tiny backend. The Tappedout parser uses a documented `?fmt=txt` shape but wasn't
-  tested with a real deck — fix the field path if an import comes back empty.
+- **Deck-link import depends on public CORS proxies** for Moxfield / Archidekt / Tappedout.
+  `utils/scryfall.js` now tries a **fallback chain** `CORS_PROXIES` (allorigins → codetabs → corsproxy.io)
+  via `fetchViaProxy`; if all die, add/reorder entries or add a tiny backend. (`corsproxy.io` alone went to
+  403/key-required — that's why it's now a chain.) The Tappedout parser uses a documented `?fmt=txt` shape but
+  wasn't tested with a real deck — fix the field path if an import comes back empty.
+- **Scryfall direct import can fail when Scryfall is degraded** — `api.scryfall.com` 503/Cloudflare error pages
+  carry no CORS header, so the browser shows "blocked by CORS policy / Failed to fetch". `scryfallFetch` now
+  retries 429/5xx + network errors with backoff and surfaces a clear "Scryfall may be busy or down" message.
+  Not app-fixable beyond that — it's a Scryfall outage; retry later. (Could not be live-tested from the agent
+  sandbox: its egress is blocked, so external fetch checks must be done in a real browser.)
 - **A11y:** sidebar `<select>`s now carry `aria-label`s (field text is a decorative `<span>`);
   custom W/H inputs are wrapped in `<label>`. Remaining gap: no full keyboard/focus-visible audit.
 - **Touch (desktop layout):** the per-card hover buttons reveal on hover, so they're not
