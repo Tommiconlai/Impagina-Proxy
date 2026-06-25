@@ -19,6 +19,10 @@ const CARD_TYPES = [
     { key: 'custom', label: 'Custom…', w: 0, h: 0 },
 ];
 
+// Input numerico → numero finito (campo svuotato = 0, non NaN: evita "NaN×NaN" e
+// griglia NaN a valle; lo 0 fa scattare l'avviso "foglio troppo piccolo").
+const toNum = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+
 // Label-sopra + select. aria-label associa il nome al control (niente <label for>).
 function SelectField({ label, value, onChange, children }) {
     return (
@@ -89,15 +93,18 @@ export default function PageSettings({
                                 <div className="card-size-custom">
                                     <label>W
                                         <input type="number" min="1" step={sheetUnit === 'in' ? '0.1' : '1'}
-                                            value={sheetW} onChange={e => setSheetW(Number(e.target.value))} />
+                                            value={sheetW} onChange={e => setSheetW(toNum(e.target.value))} />
                                         {sheetUnit}
                                     </label>
                                     <label>H
                                         <input type="number" min="1" step={sheetUnit === 'in' ? '0.1' : '1'}
-                                            value={sheetH} onChange={e => setSheetH(Number(e.target.value))} />
+                                            value={sheetH} onChange={e => setSheetH(toNum(e.target.value))} />
                                         {sheetUnit}
                                     </label>
                                 </div>
+                                {customSheet && (customSheet[0] < cardW || customSheet[1] < cardH) && (
+                                    <p className="field-hint field-hint-warn">Sheet smaller than the {cardW}×{cardH} mm card — no cards will fit.</p>
+                                )}
                             </>
                         )}
                     </div>
@@ -115,12 +122,12 @@ export default function PageSettings({
                             <div className="card-size-custom">
                                 <label>W
                                     <input type="number" min="20" max="200" step="0.5"
-                                        value={cardW} onChange={e => setCardW(Number(e.target.value))} />
+                                        value={cardW} onChange={e => setCardW(toNum(e.target.value))} />
                                     mm
                                 </label>
                                 <label>H
                                     <input type="number" min="20" max="200" step="0.5"
-                                        value={cardH} onChange={e => setCardH(Number(e.target.value))} />
+                                        value={cardH} onChange={e => setCardH(toNum(e.target.value))} />
                                     mm
                                 </label>
                             </div>
@@ -132,6 +139,7 @@ export default function PageSettings({
                             <option key={v} value={v}>{v.toFixed(1)} mm</option>
                         ))}
                     </SelectField>
+                    <p className="field-hint">Extra art printed past the cut line so no white edges show after trimming.</p>
                 </div>
             </div>
 
@@ -145,6 +153,9 @@ export default function PageSettings({
                             <option value="rgb">RGB (screen)</option>
                             <option value="cmyk">CMYK (print) — PDF/X-1a</option>
                         </SelectField>
+                        {colorMode === 'rgb' && (
+                            <p className="field-hint">RGB suits home &amp; online printing; choose CMYK only for a professional print shop.</p>
+                        )}
                         {colorMode === 'cmyk' && (
                             <div className="cmyk-box">
                                 <span className="cmyk-tag">PDF/X-1a:2003 · DeviceCMYK · embedded ICC</span>
@@ -222,6 +233,7 @@ export default function PageSettings({
                             <option key={v} value={v}>{v} DPI</option>
                         ))}
                     </SelectField>
+                    <p className="field-hint">Print sharpness. 300 DPI is the standard; higher only helps if your source art is high-res.</p>
 
                     {/* Compressione JPEG dell'export RGB (non si applica al CMYK lossless) */}
                     <div className="field">
@@ -253,6 +265,7 @@ export default function PageSettings({
                             </span>
                             <span>Show crop marks</span>
                         </label>
+                        <p className="field-hint">Thin guides showing where to cut each card.</p>
                         {cropMarks && (
                             <div className="select-wrapper" style={{ marginTop: 10 }}>
                                 <select value={cropStyle} onChange={e => setCropStyle(e.target.value)} aria-label="Crop mark style">

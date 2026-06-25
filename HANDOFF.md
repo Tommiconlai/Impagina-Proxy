@@ -95,7 +95,31 @@ Tokens at the top of `src/index.css`. Also recorded in this project's Claude mem
 
 ## Done recently
 
-- **Re-critique P3 polish — 5 fixes (most recent):** all live-verified, lint + build green.
+- **Third critique → push for Excellent (most recent):** third multi-agent `critique` scored **33/40** (up from 31;
+  #1 Visibility + #3 Control reached a genuine 4). It flagged 3 regressions from the prior batches + caps on
+  heuristics 5/9/10. All fixed + live-verified; lint + build green.
+  - **Regression: bulk Bleed flattened mirror/full → stretch** ([App.jsx](src/App.jsx) `handleBleedMany`): turning
+    bleed ON in bulk now only promotes `none`→`stretch` and **preserves `mirror`/`full`** (Scryfall full-art = mirror);
+    no silent print-fidelity downgrade. OFF still sets all `none`.
+  - **Regression: degenerate-sheet footgun** ([PagePreview.jsx](src/components/PagePreview.jsx)): when no card fits
+    (`info.perPage===0`), the pager/count/hint/bulk-bar are now gated on a new `fits` flag and the Ctrl+A/Delete
+    keyboard handler early-returns — no phantom "1/45" pager, no "delete what you can't see". Only the "No cards fit
+    this sheet" alert shows.
+  - **Regression: undo toast under-lived its window**: action-bearing toasts now auto-dismiss at **5000ms** (was a
+    flat 3500) and the deferred revoke moved to **5300ms**, so the Undo button stays reachable for its full window.
+  - **#5 input validation**: custom sheet/card numeric inputs go through `toNum` (empty/invalid → 0, never NaN — kills
+    the "NaN×NaN" grid), plus an inline `.field-hint-warn` "Sheet smaller than the W×H mm card" at the source.
+  - **#9 error recovery**: the sidebar error box got a **dismiss ×** (`setError(null)`) so a failed generate/ICC can
+    be cleared directly, not only as a side-effect of the next action.
+  - **#10 help/docs**: plain-language `field-hint`s added to the always-visible print terms — **Bleed**, **Output**
+    (RGB vs CMYK steer), **Resolution/DPI**, **crop marks** — extending the existing hint pattern.
+  - **Bonus (found via console during verify):** a zero-dimension sheet made `scale = previewW/0 = Infinity` →
+    invalid CSS height. Guarded `ratio`/`scale`/`previewH` in both PagePreview and PageCanvas (fallback to the card
+    ratio) so the degenerate state renders a clean blank sheet with no console errors.
+  - **Verify killed 2 false positives** (a phantom "no keyboard path to corner buttons"; a "footer text fails AA" that
+    used the wrong bg — it's on `--bg-base`, computes 4.73:1, passes). **Still open** (P2/P3, not done): jargon for the
+    advanced CMYK/intent fields, SR announce of the selection count, Shift-click range-select, help-tooltip role.
+- **Re-critique P3 polish — 5 fixes:** all live-verified, lint + build green.
   - **Refresh-loss guard** ([App.jsx](src/App.jsx)): a `beforeunload` listener (only while `images.length>0`)
     fires the browser's native "leave site?" prompt — images aren't persisted (blobs revoked on unmount), so a
     reload no longer silently drops a layout. Verified: `beforeunload` event is `defaultPrevented` with cards present.

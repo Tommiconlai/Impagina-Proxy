@@ -75,8 +75,9 @@ export function PageCanvas({ pageImages, formatKey, bleedMm, bleedStyle, dpi, ca
     // le immagini a ogni ridisegno (cancellazione carta, resize, cambio pagina/formato).
     const cacheRef = useRef(new Map());
     const info = useMemo(() => getGridInfo(formatKey, bleedMm, cardW, cardH, customSheet), [formatKey, bleedMm, cardW, cardH, customSheet]);
-    const scale = previewW / info.pageW;
-    const previewH = Math.round(info.pageH * scale);
+    // Guardia foglio degenere/0 (campo svuotato → pageW/pageH 0): niente scale/height Infinity.
+    const scale = info.pageW > 0 ? previewW / info.pageW : 1;
+    const previewH = info.pageH > 0 ? Math.round(info.pageH * scale) : Math.round(previewW * (cardH / cardW));
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -201,6 +202,9 @@ export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, dp
     const info = useMemo(() => getGridInfo(formatKey, bleedMm, cardW, cardH, customSheet), [formatKey, bleedMm, cardW, cardH, customSheet]);
     const perPage = Math.max(1, info.perPage);
     const totalPages = images.length === 0 ? 1 : Math.ceil(images.length / perPage);
+    // Nessuna cella entra (foglio degenere): pager/contatore/scorciatoie non hanno senso
+    // su un foglio vuoto — si mostra solo l'avviso "No cards fit this sheet".
+    const fits = info.perPage > 0;
 
     // Reset pagina al cambio formato/bleed — setState durante il render (no effect).
     const [prevFmt, setPrevFmt] = useState(formatKey);
@@ -229,13 +233,15 @@ export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, dp
     // La pagina riempie lo spazio mantenendo le proporzioni carta,
     // limitata sia in larghezza sia in altezza.
     const PAD = 16;
-    const ratio = info.pageW / info.pageH;
+    // Guardia foglio degenere/0: pageW/pageH possono essere 0 (campo svuotato → sheet 0),
+    // che darebbe ratio=Infinity e scale=Infinity (height CSS invalida). Fallback sicuro.
+    const ratio = info.pageW > 0 && info.pageH > 0 ? info.pageW / info.pageH : cardW / cardH;
     const availW = Math.max(0, box.w - PAD * 2);
     const availH = Math.max(0, box.h - PAD * 2);
     const pageW = box.w > 0
         ? Math.max(160, Math.floor(Math.min(availW, availH * ratio)))
         : 360; // fallback prima che il ResizeObserver risponda
-    const scale = pageW / info.pageW;
+    const scale = info.pageW > 0 ? pageW / info.pageW : 1;
 
     // Immagini della pagina corrente (riferimento stabile finché non cambiano).
     const pageImages = useMemo(
@@ -278,7 +284,7 @@ export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, dp
 
     // Scorciatoie: Del = elimina selezione, Esc = deseleziona, Ctrl/Cmd+A = seleziona tutto.
     useEffect(() => {
-        if (!selectMode) return;
+        if (!selectMode || !fits) return;
         const onKey = (e) => {
             const tag = e.target?.tagName;
             if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target?.isContentEditable) return;
@@ -295,7 +301,7 @@ export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, dp
         };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
-    }, [selectMode, selected, selectedIds, images, onRemoveMany]);
+    }, [selectMode, fits, selected, selectedIds, images, onRemoveMany]);
 
     return (
         <div className={`preview-root${isDragActive ? ' drag-active' : ''}`}>
@@ -429,7 +435,7 @@ export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, dp
             <div className="preview-footer" ref={footerRef} tabIndex={-1}>
                 {/* La bulk-bar è una RIGA a sé: il pager resta sempre visibile (niente trappola
                     sulla pagina corrente quando c'è una selezione su un foglio multi-pagina). */}
-                {selectMode && selectedIds.length > 0 && (
+                {fits && selectMode && selectedIds.length > 0 && (
                     <div className="bulk-bar" role="toolbar" aria-label="Selected cards">
                         <span className="bulk-count">{selectedIds.length} selected{selectedSpansPages ? ' · spans pages' : ''}</span>
                         <button type="button" className="bulk-btn" onClick={() => onBleedMany?.(selectedIds)}>
@@ -441,7 +447,7 @@ export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, dp
                         <button type="button" className="bulk-btn bulk-clear" onClick={clearSel}>Clear</button>
                     </div>
                 )}
-                {totalPages > 1 && (
+                {fits && totalPages > 1 && (
                     <div className="preview-nav">
                         <button
                             className="nav-btn"
@@ -458,13 +464,13 @@ export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, dp
                         >›</button>
                     </div>
                 )}
-                {images.length > 0 && !(selectMode && selectedIds.length > 0) && (
+                {fits && images.length > 0 && !(selectMode && selectedIds.length > 0) && (
                     <span className="preview-count">
                         {images.length} card{images.length !== 1 ? 's' : ''}{missing > 0 ? ` · add ${missing} to fill this page` : ''}
                     </span>
                 )}
                 {/* Suggerimento discreto: rende scopribile la multi-selezione (altrimenti solo hover/aria). */}
-                {selectMode && images.length > 1 && selectedIds.length === 0 && (
+                {fits && selectMode && images.length > 1 && selectedIds.length === 0 && (
                     <span className="preview-hint">Ctrl/⌘ or Shift-click to select multiple</span>
                 )}
             </div>

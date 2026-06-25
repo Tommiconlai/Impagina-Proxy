@@ -1814,6 +1814,25 @@ body::before {
   color: #fca5a5;
 }
 
+/* Chiudi/scarta l'errore (heuristic #9: l'utente può rimuoverlo, non solo leggerlo). */
+.info-box-dismiss {
+  flex: none;
+  margin-left: auto;
+  display: flex;
+  padding: 2px;
+  border: none;
+  background: transparent;
+  color: #fca5a5;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  opacity: 0.7;
+  transition: opacity var(--transition), background var(--transition);
+}
+.info-box-dismiss:hover { opacity: 1; background: rgba(239, 68, 68, 0.18); }
+
+/* Variante d'allerta del field-hint (es. "foglio troppo piccolo"). */
+.field-hint-warn { color: #e08a7a; }
+
 /* ============================================================
    MOBILE (≤768px) — bottom-tab shell
    ============================================================ */

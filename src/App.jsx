@@ -14,7 +14,7 @@ import { useIsMobile } from './hooks/useIsMobile';
 import { generatePDF, getGridInfo, PAPER_FORMATS, nextBleedMode } from './utils/pdfGenerator';
 import { DEFAULT_PROFILE_ID, UPLOAD_ID, getProfileMeta, loadBundledProfileBytes } from './utils/iccProfiles';
 import { buildDeckList } from './utils/scryfall';
-import { IconFile, IconAlert, IconTrash, IconDownload, IconList, IconImage, IconPlus, Logo } from './components/icons';
+import { IconFile, IconAlert, IconTrash, IconDownload, IconList, IconImage, IconPlus, IconX, Logo } from './components/icons';
 
 // Lettura numerica da localStorage con default (null/NaN → default, 0 valido).
 const readNum = (k, d) => {
@@ -106,10 +106,11 @@ export default function App() {
     return () => document.removeEventListener('mousedown', onDoc);
   }, [addMenuOpen]);
 
-  // Auto-chiusura del toast dopo ~3.5s (tap per chiudere prima).
+  // Auto-chiusura del toast (tap per chiudere prima). I toast con azione (es. Undo)
+  // restano più a lungo, allineati alla finestra di annullamento (revoke a 5.3s).
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(() => setToast(null), 3500);
+    const t = setTimeout(() => setToast(null), toast.action ? 5000 : 3500);
     return () => clearTimeout(t);
   }, [toast]);
 
@@ -197,7 +198,7 @@ export default function App() {
       msg: `Removed ${removed.length} card${removed.length > 1 ? 's' : ''}`,
       action: { label: 'Undo', onClick: undo },
     });
-    setTimeout(() => { if (!undone) removed.forEach(({ it }) => URL.revokeObjectURL(it.preview)); }, 5000);
+    setTimeout(() => { if (!undone) removed.forEach(({ it }) => URL.revokeObjectURL(it.preview)); }, 5300);
   };
 
   const handleRemove = (id) => removeWithUndo([id]);
@@ -229,8 +230,13 @@ export default function App() {
   const handleBleedMany = (ids) => {
     const set = new Set(ids);
     const anyOff = images.some(it => set.has(it.id) && it.bleedMode === 'none');
-    const target = anyOff ? 'stretch' : 'none';
-    setImages(prev => prev.map(it => set.has(it.id) ? { ...it, bleedMode: target } : it));
+    // "on" = accendi SOLO le carte senza abbondanza (none→stretch) e PRESERVA mirror/full
+    // (es. full-art Scryfall = mirror): niente downgrade silenzioso. "off" = tutte a none.
+    setImages(prev => prev.map(it => {
+      if (!set.has(it.id)) return it;
+      if (!anyOff) return { ...it, bleedMode: 'none' };
+      return it.bleedMode === 'none' ? { ...it, bleedMode: 'stretch' } : it;
+    }));
     setToast({ kind: 'success', msg: `Bleed ${anyOff ? 'on' : 'off'} for ${ids.length} card${ids.length > 1 ? 's' : ''}` });
   };
 
@@ -473,6 +479,9 @@ export default function App() {
               <div className="info-box info-box-error">
                 <IconAlert size={15} style={{ flexShrink: 0, marginTop: 2 }} />
                 <span>{error}</span>
+                <button type="button" className="info-box-dismiss" onClick={() => setError(null)} aria-label="Dismiss error">
+                  <IconX size={14} />
+                </button>
               </div>
             )}
           </div>
