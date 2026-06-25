@@ -23,6 +23,9 @@ export const PAPER_FORMATS = {
 function calcGrid(pw, ph, bleedMm, cardW, cardH) {
   const cellW = cardW + bleedMm * 2;
   const cellH = cardH + bleedMm * 2;
+  // Carta degenere (W/H 0 o negativi → cella 0): nessuna cella entra. Evita anche
+  // Math.floor(x/0)=Infinity → Array.from({length:Infinity}) (RangeError) a valle.
+  if (cardW <= 0 || cardH <= 0 || cellW <= 0 || cellH <= 0) return { cols: 0, rows: 0 };
   const cols = Math.floor((pw - PAGE_MARGIN * 2) / cellW);
   const rows = Math.floor((ph - PAGE_MARGIN * 2) / cellH);
   return { cols: Math.max(0, cols), rows: Math.max(0, rows) };

@@ -95,7 +95,32 @@ Tokens at the top of `src/index.css`. Also recorded in this project's Claude mem
 
 ## Done recently
 
-- **Third critique → push for Excellent (most recent):** third multi-agent `critique` scored **33/40** (up from 31;
+- **Fourth critique → regressions + push for Excellent (most recent):** fourth multi-agent `critique` scored
+  **34/40** (up from 33; #5 + #10 reached a genuine 4). It found 3 regressions from the previous batch + the
+  loudest pre-existing P2s. All 6 fixed + live-verified; lint + build green; console clean.
+  - **Regression: mobile error box lost the dismiss ×** (added to desktop only). Threaded `onClearError`
+    into the `actions` bundle ([App.jsx](src/App.jsx)) + the same `IconX` dismiss in `MobileLayout` — parity
+    restored (this was the sole thing capping #9 at 3). Verified live: mobile error shows + clears.
+  - **Regression: new `.field-hint`s failed WCAG AA** — `.field-hint` was `--text-muted` #767e93 at 11.5px
+    (~4.0–4.46:1 on the glass-over-surface bg), the exact pattern already rejected at `.sidebar-section h2`.
+    Switched `.field-hint` → `--text-secondary` (#8b92a8) and `.field-hint b` → `--text-primary`. One CSS rule.
+  - **Regression: card W/H = 0 bypassed the degenerate guard** (incl. a latent `bleed=0 + card=0` →
+    `Array.from({length: Infinity})` RangeError). `calcGrid` ([utils/pdfGenerator.js](src/utils/pdfGenerator.js))
+    now returns a 0×0 grid when `cardW/cardH/cellW/cellH <= 0`, so `perPage===0` → the existing `fits` handling
+    (warning + suppressed chrome) kicks in. Verified: card-0 shows "No cards fit", finite canvas, no crash.
+  - **Shift-click range-select** (was a false affordance — aliased to ctrl): `handleCardClick` now tracks an
+    `anchorRef` and shift-click selects the contiguous range on the current page (Finder/Linear-style), making
+    the "Shift-click to select multiple" copy true. Verified: ctrl-click anchor + shift-click → 5-card range.
+  - **Keyboard Delete on the card grid**: the bail-on-`BUTTON` guard over-fired on the card buttons (focus sits
+    there after selecting). Now Delete also fires when `e.target.closest('.preview-card-hotspot')`, still
+    suppressed on nav/bulk/sidebar. Verified: Delete on a focused card → undo toast.
+  - **SR announce of the selection count**: a second `.sr-only aria-live` region announces
+    "N cards selected[, spanning multiple pages]" (the bulk-bar count is visual-only). Verified live.
+  - **Still open** (verified P2/P3, not done): help-button `aria-haspopup="dialog"`→`role="tooltip"` mismatch +
+    no Esc-to-close; CMYK ICC-upload label keyboard-unreachable (`hidden` input); Bleed-style dropdown has no
+    default hint; advanced CMYK/rendering-intent jargon; per-page select-all; single toast slot; ICC-clear raw
+    `×` glyph vs IconX. Deferred features: drag-reorder, mobile batch.
+- **Third critique → push for Excellent:** third multi-agent `critique` scored **33/40** (up from 31;
   #1 Visibility + #3 Control reached a genuine 4). It flagged 3 regressions from the prior batches + caps on
   heuristics 5/9/10. All fixed + live-verified; lint + build green.
   - **Regression: bulk Bleed flattened mirror/full → stretch** ([App.jsx](src/App.jsx) `handleBleedMany`): turning

@@ -386,6 +386,7 @@ export default function App() {
           settingsProps={settingsProps}
           previewProps={previewProps}
           actions={{ onGenerate: handleGenerate, onSave: handleSaveProject, onClear: handleClearAll,
+            onClearError: () => setError(null),
             loading, error, count: images.length, missing, lowResCount, dpi }}
           // onFiles: il tasto Upload mobile è un <label><input type=file> nativo (gesto
           // reale → apre il picker su mobile, dove open() di react-dropzone è inaffidabile).

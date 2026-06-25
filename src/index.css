@@ -511,9 +511,9 @@ input[type="number"]:focus {
   margin-top: 8px;
   font-size: 0.72rem;
   line-height: 1.4;
-  color: var(--text-muted);
+  color: var(--text-secondary); /* non --text-muted: a 11px falliva AA sul surface (cfr. .sidebar-section h2) */
 }
-.field-hint b { color: var(--text-secondary); }
+.field-hint b { color: var(--text-primary); }
 
 /* Pannello CMYK / PDF-X-1a (rivelato quando Output = CMYK) */
 .cmyk-box {

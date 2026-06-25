@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Logo, IconFile, IconDownload, IconList, IconTrash, IconPlus, IconImage } from './icons';
+import { Logo, IconFile, IconDownload, IconList, IconTrash, IconPlus, IconImage, IconX } from './icons';
 import PageSettings from './PageSettings';
 import PagePreview from './PagePreview';
 import CardActionSheet from './CardActionSheet';
@@ -117,7 +117,14 @@ export default function MobileLayout({ settingsProps, previewProps, actions, add
               {actions.loading ? <><span className="spinner" /> Generating…</> : <><IconFile size={18} /> Generate PDF</>}
             </button>
             <p className="field-hint">Use <b>Save list</b> (bottom bar) to export your Scryfall cards as a reloadable deck list.</p>
-            {actions.error && <div className="info-box info-box-error"><span>{actions.error}</span></div>}
+            {actions.error && (
+              <div className="info-box info-box-error">
+                <span>{actions.error}</span>
+                <button type="button" className="info-box-dismiss" onClick={actions.onClearError} aria-label="Dismiss error">
+                  <IconX size={14} />
+                </button>
+              </div>
+            )}
           </div>
         </MobilePage>
       )}

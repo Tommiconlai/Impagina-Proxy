@@ -277,8 +277,24 @@ export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, dp
         n.has(id) ? n.delete(id) : n.add(id);
         return n;
     });
+    const anchorRef = useRef(null); // ultima carta selezionata = ancora per lo shift-range
     const handleCardClick = (e, id) => {
-        if (e.metaKey || e.ctrlKey || e.shiftKey) { e.preventDefault(); toggleSel(id); }
+        // Shift-click = range contiguo sulla pagina corrente fra ancora e target (come Finder/Linear),
+        // così la copia "Shift-click to select multiple" è vera (non un alias di ctrl).
+        if (e.shiftKey && anchorRef.current && anchorRef.current !== id) {
+            const start = page * perPage;
+            const pageItems = images.slice(start, start + perPage);
+            const a = pageItems.findIndex(it => it.id === anchorRef.current);
+            const b = pageItems.findIndex(it => it.id === id);
+            if (a !== -1 && b !== -1) {
+                const [lo, hi] = a < b ? [a, b] : [b, a];
+                const range = pageItems.slice(lo, hi + 1).map(it => it.id);
+                setSelected(prev => { const n = new Set(prev); range.forEach(x => n.add(x)); return n; });
+                anchorRef.current = id;
+                return;
+            }
+        }
+        if (e.metaKey || e.ctrlKey || e.shiftKey) { e.preventDefault(); toggleSel(id); anchorRef.current = id; }
         else onChangeArt(id);
     };
 
@@ -292,10 +308,11 @@ export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, dp
                 clearSel();
             } else if ((e.key === 'a' || e.key === 'A') && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault(); setSelected(new Set(images.map(i => i.id)));
-            } else if (e.key === 'Delete' && selected.size && tag !== 'BUTTON' && tag !== 'A') {
-                // Solo Delete (non Backspace = riflesso "indietro") e solo se il focus NON è su un
-                // controllo: così tabulando tra le carte non si cancella la selezione per sbaglio.
-                // La via esplicita resta il bottone Delete nella bulk-bar.
+            } else if (e.key === 'Delete' && selected.size
+                && (e.target?.closest?.('.preview-card-hotspot') || (tag !== 'BUTTON' && tag !== 'A'))) {
+                // Solo Delete (non Backspace = riflesso "indietro"). Consentito sulla griglia carte
+                // (dove sta il focus dopo aver selezionato) ma NON su nav/bulk/sidebar, così
+                // tabulando tra i controlli non si cancella la selezione per sbaglio.
                 e.preventDefault(); onRemoveMany?.(selectedIds); clearSel();
             }
         };
@@ -351,6 +368,14 @@ export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, dp
                     {images.length > 0 && (
                         <p className="sr-only" aria-live="polite">
                             Print sheet preview: {images.length} card{images.length !== 1 ? 's' : ''} placed, page {page + 1} of {totalPages}.
+                        </p>
+                    )}
+                    {/* Annuncio SR del conteggio selezione (la bulk-bar è solo visiva, role=toolbar). */}
+                    {selectMode && (
+                        <p className="sr-only" aria-live="polite">
+                            {selectedIds.length > 0
+                                ? `${selectedIds.length} card${selectedIds.length !== 1 ? 's' : ''} selected${selectedSpansPages ? ', spanning multiple pages' : ''}.`
+                                : ''}
                         </p>
                     )}
                     {images.length > 0 && (
