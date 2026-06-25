@@ -94,7 +94,11 @@ Tokens at the top of `src/index.css`. Also recorded in this project's Claude mem
 
 ## Done recently
 
-- **Import resilience: CORS-proxy fallback + Scryfall retry (most recent):** the deck-link import used a single
+- **Mobile Upload button fix (most recent):** the `react-dropzone` `<input {...getInputProps()}>` was rendered
+  only in the desktop tree, so on mobile `open()` had no input to click → the Upload sheet button did nothing.
+  Now the input is mounted in the mobile branch too. Verified live (390px): Upload clicks the input + the file
+  pipeline adds a card.
+- **Import resilience: CORS-proxy fallback + Scryfall retry:** the deck-link import used a single
   `corsproxy.io` which started returning 403 (now key-gated) → "Failed to fetch". Replaced with a **fallback chain**
   (`CORS_PROXIES`: allorigins → codetabs → corsproxy.io) via `fetchViaProxy` (first proxy that responds ok wins).
   The direct Scryfall import was also failing with a CORS/`Failed to fetch` error caused by `api.scryfall.com`

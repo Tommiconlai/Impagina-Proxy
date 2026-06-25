@@ -317,6 +317,10 @@ export default function App() {
   if (isMobile) {
     return (
       <>
+        {/* Input file di react-dropzone: nel ramo desktop è dentro la preview; qui va
+            montato esplicitamente, altrimenti open() (tasto Upload mobile) non ha
+            l'<input> su cui fare click e non apre nulla. */}
+        <input {...getInputProps()} />
         <MobileLayout
           settingsProps={settingsProps}
           previewProps={previewProps}
