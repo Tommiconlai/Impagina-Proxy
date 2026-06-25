@@ -124,9 +124,23 @@ export default function MobileLayout({ settingsProps, previewProps, actions, add
               <div className="lowres-warn"><span className="lowres-mark" aria-hidden="true">!</span>
                 <span>{actions.lowResCount} card{actions.lowResCount > 1 ? 's' : ''} too low-res for {actions.dpi} DPI — lower the DPI or use higher-res art.</span></div>
             )}
-            <button className="btn-generate" onClick={actions.onGenerate} disabled={actions.count === 0 || actions.loading}>
-              {actions.loading ? <><span className="spinner" /> Generating…</> : <><IconFile size={18} /> Generate PDF</>}
-            </button>
+            {actions.loading ? (
+              <div className="gen-progress">
+                <button className="btn-generate" disabled>
+                  <span className="spinner" />
+                  {actions.genProgress ? `Rendering ${actions.genProgress.done}/${actions.genProgress.total}…` : 'Generating…'}
+                </button>
+                <div className="gen-bar" role="progressbar" aria-label="Export progress"
+                  aria-valuenow={actions.genProgress?.done || 0} aria-valuemin={0} aria-valuemax={actions.genProgress?.total || 0}>
+                  <div className="gen-bar-fill" style={{ transform: `scaleX(${actions.genProgress?.total ? actions.genProgress.done / actions.genProgress.total : 0})` }} />
+                </div>
+                <button type="button" className="btn-secondary gen-cancel" onClick={actions.onCancelGenerate}>Cancel export</button>
+              </div>
+            ) : (
+              <button className="btn-generate" onClick={actions.onGenerate} disabled={actions.count === 0}>
+                <IconFile size={18} /> Generate PDF
+              </button>
+            )}
             <p className="field-hint">Use <b>Save list</b> (bottom bar) to export your Scryfall cards as a reloadable deck list.</p>
             {actions.error && (
               <div className="info-box info-box-error">

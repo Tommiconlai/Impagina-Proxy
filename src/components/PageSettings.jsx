@@ -183,23 +183,29 @@ export default function PageSettings({
                                         </div>
                                         {uploadedIcc
                                             ? <p className="field-hint icc-ok">✓ {uploadedIcc.name}</p>
-                                            : <p className="field-hint">Upload your print shop’s CMYK output profile (a DeviceLink/abstract profile is rejected).</p>}
+                                            : <p className="field-hint">Ask your print shop for their CMYK <b>output</b> profile (an <code>.icc</code> / <code>.icm</code> file). The bundled FOGRA profiles above already cover most EU/US offset shops. DeviceLink or abstract profiles are rejected.</p>}
                                     </>
                                 )}
                                 {profileMismatchCount > 0 && (
                                     <div className="lowres-warn">
                                         <span className="lowres-mark" aria-hidden="true">!</span>
                                         <span>
-                                            {profileMismatchCount} native CMYK card{profileMismatchCount > 1 ? 's have' : ' has'} an embedded
-                                            profile different from the destination — colours may not match. They’re passed through unconverted.
+                                            {profileMismatchCount} native CMYK card{profileMismatchCount > 1 ? 's were' : ' was'} built for a different
+                                            CMYK profile than the one selected. To keep the exact ink values {profileMismatchCount > 1 ? 'they’re' : 'it’s'} exported
+                                            as-is (no conversion). If the print looks off, ask your shop to re-export in your selected profile, or switch the profile above to match.
                                         </span>
                                     </div>
                                 )}
                                 <SelectField label="Rendering intent" value={renderIntent} onChange={e => setRenderIntent(e.target.value)}>
-                                    <option value="relative">Relative Colorimetric + BPC</option>
+                                    <option value="relative">Relative Colorimetric + BPC (default)</option>
                                     <option value="perceptual">Perceptual</option>
                                 </SelectField>
-                                <p className="field-hint">Used for RGB art (Scryfall/RGB uploads). Native CMYK JPEGs are passed through untouched (already in your profile) — the intent doesn’t apply to them. Your shop may prefer a specific intent.</p>
+                                <p className="field-hint">
+                                    How RGB art is mapped into CMYK. <b>Relative Colorimetric + BPC</b> (default) keeps in-gamut
+                                    colours exact and uses Black Point Compensation (BPC) to preserve shadow detail;
+                                    {' '}<b>Perceptual</b> gently compresses all colours to fit. Affects only RGB art (Scryfall / RGB
+                                    uploads) — native CMYK JPEGs pass through untouched. Your print shop may prefer one.
+                                </p>
                                 <p className="field-hint">Note: the on-screen preview is RGB. Very saturated colours print less vivid in CMYK (smaller gamut) — that’s normal.</p>
                             </div>
                         )}
@@ -224,8 +230,8 @@ export default function PageSettings({
                         <div className="lowres-warn">
                             <span className="lowres-mark" aria-hidden="true">!</span>
                             <span>
-                                {lowResCount} card{lowResCount > 1 ? 's' : ''} {lowResCount > 1 ? 'are' : 'is'} too low-res for {dpi} DPI —
-                                {' '}{lowResCount > 1 ? 'they' : 'it'}’ll print soft/pixelated. Lower the DPI or use higher-res art.
+                                {lowResCount} card{lowResCount > 1 ? 's' : ''} {lowResCount > 1 ? 'have' : 'has'} under half the pixels {dpi} DPI needs at
+                                card size — {lowResCount > 1 ? 'they' : 'it'}’ll print soft. Lower the DPI or use higher-res art.
                                 Flagged with a <b>!</b> on the card in the preview.
                             </span>
                         </div>
@@ -236,7 +242,7 @@ export default function PageSettings({
                             <option key={v} value={v}>{v} DPI</option>
                         ))}
                     </SelectField>
-                    <p className="field-hint">Print sharpness. 300 DPI is the standard; higher only helps if your source art is high-res.</p>
+                    <p className="field-hint">Print sharpness. 300 DPI is the standard — source art should be about that at card size (a 63×88&nbsp;mm card ≈ 745&nbsp;px wide). Higher DPI only helps if the art is high-res.</p>
 
                     {/* Compressione JPEG dell'export RGB (non si applica al CMYK lossless) */}
                     <div className="field">

@@ -313,7 +313,7 @@ function compressImage(img, cellWmm, cellHmm, dpi, bleedMm, bleedMode, quality =
 /**
  * Genera e scarica il PDF.
  */
-export async function generatePDF(items, formatKey, bleedMm, dpi = 600, bleedStyle = 'auto', cardW = CARD_W, cardH = CARD_H, cropMarks = true, cropStyle = 'lines', customSheet = null, quality = 0.85) {
+export async function generatePDF(items, formatKey, bleedMm, dpi = 600, bleedStyle = 'auto', cardW = CARD_W, cardH = CARD_H, cropMarks = true, cropStyle = 'lines', customSheet = null, quality = 0.85, onProgress = null, signal = null) {
   if (!items || items.length === 0) throw new Error('No images selected.');
 
   const { cols, rows, cellW, cellH, pageW, pageH, orientation, offsetX, offsetY } = getGridInfo(formatKey, bleedMm, cardW, cardH, customSheet);
@@ -346,6 +346,10 @@ export async function generatePDF(items, formatKey, bleedMm, dpi = 600, bleedSty
       const x = offsetX + col * cellW;
       const y = offsetY + row * cellH;
 
+      // Abort cooperativo (l'utente ha premuto Annulla): esci con un errore tipizzato
+      // che App riconosce per non mostrarlo come errore.
+      if (signal?.aborted) throw new DOMException('Export canceled.', 'AbortError');
+
       // Carica, ridimensiona e comprimi prima di passare a jsPDF
       const item = items[imgIndex];
       const imgEl = await loadImageElement(item.file);
@@ -364,6 +368,7 @@ export async function generatePDF(items, formatKey, bleedMm, dpi = 600, bleedSty
 
       posOnPage++;
       imgIndex++;
+      onProgress?.(imgIndex, items.length); // carte renderizzate finora
     }
   }
 

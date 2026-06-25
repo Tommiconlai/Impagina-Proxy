@@ -55,6 +55,8 @@ export default function App() {
   const [uploadedIcc, setUploadedIcc] = useState(null); // { bytes, name } profilo caricato (non persistito)
   const [confirm, setConfirm] = useState(null); // dialog conferma azioni distruttive: { message, confirmLabel, onConfirm }
   const [loading, setLoading] = useState(false);
+  const [genProgress, setGenProgress] = useState(null); // { done, total } durante l'export PDF
+  const genAbortRef = useRef(null); // AbortController dell'export in corso (per Annulla)
   const [error, setError] = useState(null);
   const [toast, setToast] = useState(null); // feedback transitorio { kind:'success'|'error', msg }
   const [importOpen, setImportOpen] = useState(false);
@@ -318,29 +320,38 @@ export default function App() {
   const handleGenerate = async () => {
     setError(null);
     setLoading(true);
+    const ctrl = new AbortController();
+    genAbortRef.current = ctrl;
+    setGenProgress({ done: 0, total: images.length });
+    const onProgress = (done, total) => setGenProgress({ done, total });
     try {
       if (colorMode === 'cmyk') {
         // Risolve il profilo attivo: incluso (fetch byte on-demand) o caricato.
         let iccBytes, iccInfo, condition;
         if (iccProfileId === UPLOAD_ID) {
-          if (!uploadedIcc) throw new Error('Load your ICC profile, or pick a bundled one.');
+          if (!uploadedIcc) throw new Error('No ICC profile loaded. In the sidebar’s CMYK settings, pick a bundled profile (e.g. Coated FOGRA39) or upload your print shop’s .icc, then export again.');
           iccBytes = uploadedIcc.bytes; iccInfo = uploadedIcc.name; condition = 'CUSTOM';
         } else {
           const meta = getProfileMeta(iccProfileId) || getProfileMeta(DEFAULT_PROFILE_ID);
           iccBytes = await loadBundledProfileBytes(meta.id); iccInfo = meta.info; condition = meta.condition;
         }
         const { generatePDFCmyk } = await import('./utils/pdfGeneratorCmyk');
-        await generatePDFCmyk(images, formatKey, bleedMm, dpi, bleedStyle, cardW, cardH, cropMarks, cropStyle, customSheet, iccBytes, iccInfo, renderIntent, condition);
+        await generatePDFCmyk(images, formatKey, bleedMm, dpi, bleedStyle, cardW, cardH, cropMarks, cropStyle, customSheet, iccBytes, iccInfo, renderIntent, condition, onProgress, ctrl.signal);
       } else {
-        await generatePDF(images, formatKey, bleedMm, dpi, bleedStyle, cardW, cardH, cropMarks, cropStyle, customSheet, quality);
+        await generatePDF(images, formatKey, bleedMm, dpi, bleedStyle, cardW, cardH, cropMarks, cropStyle, customSheet, quality, onProgress, ctrl.signal);
       }
       setToast({ kind: 'success', msg: 'PDF ready — check your downloads.' });
     } catch (err) {
-      setError(err.message || 'Error generating the PDF.');
+      // L'utente ha annullato: feedback neutro, non un errore.
+      if (err?.name === 'AbortError') setToast({ kind: 'success', msg: 'Export canceled.' });
+      else setError(err.message || 'Error generating the PDF.');
     } finally {
       setLoading(false);
+      setGenProgress(null);
+      genAbortRef.current = null;
     }
   };
+  const handleCancelGenerate = () => genAbortRef.current?.abort();
 
   // Dropzone: drag&drop sull'intera area preview + open() per il bottone "+".
   const { getRootProps, getInputProps, open, isDragActive } = useDropzone({
@@ -388,7 +399,7 @@ export default function App() {
           settingsProps={settingsProps}
           previewProps={previewProps}
           actions={{ onGenerate: handleGenerate, onSave: handleSaveProject, onClear: handleClearAll,
-            onClearError: () => setError(null),
+            onClearError: () => setError(null), onCancelGenerate: handleCancelGenerate, genProgress,
             loading, error, count: images.length, missing, lowResCount, dpi }}
           // onFiles: il tasto Upload mobile è un <label><input type=file> nativo (gesto
           // reale → apre il picker su mobile, dove open() di react-dropzone è inaffidabile).
@@ -460,16 +471,23 @@ export default function App() {
                 <IconPlus size={18} /> Add cards
               </button>
             </div>
-            <button
-              className="btn-generate"
-              onClick={handleGenerate}
-              disabled={images.length === 0 || loading}
-            >
-              {loading
-                ? <><span className="spinner" /> Generating…</>
-                : <><IconFile size={18} /> Generate PDF</>
-              }
-            </button>
+            {loading ? (
+              <div className="gen-progress">
+                <button className="btn-generate" disabled>
+                  <span className="spinner" />
+                  {genProgress ? `Rendering ${genProgress.done}/${genProgress.total}…` : 'Generating…'}
+                </button>
+                <div className="gen-bar" role="progressbar" aria-label="Export progress"
+                  aria-valuenow={genProgress?.done || 0} aria-valuemin={0} aria-valuemax={genProgress?.total || 0}>
+                  <div className="gen-bar-fill" style={{ transform: `scaleX(${genProgress?.total ? genProgress.done / genProgress.total : 0})` }} />
+                </div>
+                <button type="button" className="btn-secondary gen-cancel" onClick={handleCancelGenerate}>Cancel export</button>
+              </div>
+            ) : (
+              <button className="btn-generate" onClick={handleGenerate} disabled={images.length === 0}>
+                <IconFile size={18} /> Generate PDF
+              </button>
+            )}
             <div className="export-row">
               <button className="btn-secondary btn-save" onClick={handleSaveProject} disabled={images.length === 0}>
                 <IconList size={15} /> Save list

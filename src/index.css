@@ -1616,6 +1616,34 @@ input[type="range"]::-webkit-slider-thumb:hover {
   }
 }
 
+/* Export PDF: barra di avanzamento determinata + Annulla (sostituisce lo spinner cieco) */
+.gen-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.gen-progress .btn-generate {
+  width: 100%;
+}
+.gen-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+.gen-bar-fill {
+  height: 100%;
+  width: 100%;
+  transform-origin: left center;
+  transform: scaleX(0);
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--accent-light));
+  transition: transform 0.2s ease-out; /* scaleX, non width: niente reflow */
+}
+.gen-cancel {
+  justify-content: center;
+}
+
 .btn-secondary {
   display: inline-flex;
   align-items: center;

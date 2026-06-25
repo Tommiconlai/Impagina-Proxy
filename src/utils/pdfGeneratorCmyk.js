@@ -120,7 +120,7 @@ function drawCropMarksPdf(page, ops, x, y, bleed, limits, cardW, cardH, style, p
  * Firma allineata a generatePDF + (iccBytes, iccName, intentKey).
  * iccBytes: Uint8Array del profilo CMYK della tipografia (obbligatorio).
  */
-export async function buildCmykPdfBytes(items, formatKey, bleedMm, dpi = 300, bleedStyle = 'auto', cardW = CARD_W, cardH = CARD_H, cropMarks = true, cropStyle = 'lines', customSheet = null, iccBytes = null, iccName = 'CMYK', intentKey = 'relative', condition = null) {
+export async function buildCmykPdfBytes(items, formatKey, bleedMm, dpi = 300, bleedStyle = 'auto', cardW = CARD_W, cardH = CARD_H, cropMarks = true, cropStyle = 'lines', customSheet = null, iccBytes = null, iccName = 'CMYK', intentKey = 'relative', condition = null, onProgress = null, signal = null) {
   if (!items || items.length === 0) throw new Error('No images selected.');
   if (!iccBytes || !iccBytes.length) throw new Error('Load the print shop ICC profile first.');
 
@@ -188,6 +188,8 @@ export async function buildCmykPdfBytes(items, formatKey, bleedMm, dpi = 300, bl
       const xmm = offsetX + col * cellW;
       const ymm = offsetY + row * cellH; // dall'alto
 
+      if (signal?.aborted) { if (conv) conv.close(); throw new DOMException('Export canceled.', 'AbortError'); }
+
       const item = items[imgIndex];
       const mode = resolveBleedMode(item.bleedMode, bleedStyle);
 
@@ -239,6 +241,7 @@ export async function buildCmykPdfBytes(items, formatKey, bleedMm, dpi = 300, bl
 
       posOnPage++;
       imgIndex++;
+      onProgress?.(imgIndex, items.length); // carte renderizzate finora
     }
   }
 
