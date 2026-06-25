@@ -56,8 +56,7 @@ before restarting.
 | `src/components/ConfirmDialog.jsx` | Themed confirm for destructive actions (reuses `.modal`; `.modal.modal-confirm` overrides the mobile full-screen modal so it stays small/centered). Driven by App's `confirm` state `{message,confirmLabel,onConfirm}`; rendered in both App trees. Used by `handleClearAll` ("Delete all") |
 | `src/components/CookieBanner.jsx` | Cookie-consent banner (fixed bottom, centered, matches the modal surface/shadow). Self-contained: shows until the user chooses, persists `ip:cookieConsent` = `accepted`\|`declined` in localStorage. **Settings always live in localStorage (technical)**; this flag only gates any *future* analytics cookies (read the flag before loading them — none today). Rendered once in each App tree (desktop + mobile); on mobile it sits above the bottom-tab bar. Centered via `left:0;right:0;margin-inline:auto` (not `translateX`, which the `fade-up` animation would override) |
 | `src/hooks/useIsMobile.js` | `matchMedia('(max-width: 768px)')` via `useSyncExternalStore` → boolean. App renders the desktop tree above 768px, `MobileLayout` at/below |
-| `src/components/MobileLayout.jsx` | Mobile shell (≤768px): compact header (Logo + `?` tap-tooltip), three bottom tabs via `BottomTabBar` — **Cards** (`PageCanvas` preview + ＋ FAB → add bottom-sheet; `onCardTap` → `CardActionSheet`), **Settings** (reuses `PageSettings`), **Export** (count/missing + low-res warn + Generate/Save/Delete). Presentational only; consumes `settingsProps`/`previewProps`/`actions`/`addMenu` bundles from `App`. Local state: tab, addOpen, sel, helpOpen |
-| `src/components/BottomTabBar.jsx` | 3-tab nav (Cards/Settings/Export); reuses `IconLayout`/`IconFile` + an inline sliders icon |
+| `src/components/MobileLayout.jsx` | Mobile shell (≤768px): compact header (Logo + `?` tap-tooltip) + the always-on **Cards** view (`PagePreview`; `onCardTap` → `CardActionSheet`). **No tab bar** (removed `BottomTabBar`). Bottom **action bar** `.cards-toolbar` (`space-between`): **Settings** nav (left, icon+label) · `.ct-cluster` [Delete all · ＋ Add (FAB, primary) · Save list] · **Export** nav (right). ＋ opens the add bottom-sheet; **Settings/Export open a full-screen `MobilePage` overlay** (slide-up, header + close): Settings = `PageSettings`, Export = count/missing + low-res warn + Generate PDF (Save/Delete moved to the bar). Presentational; consumes `settingsProps`/`previewProps`/`actions`/`addMenu`. Local state: addOpen, sel, helpOpen, page(`null`/`settings`/`export`). Inline `IconSliders` + `MobilePage` helpers |
 | `src/components/CardActionSheet.jsx` | Mobile bottom sheet for a tapped card: Change art · Duplicate · **Bleed: <mode>** (cycles none/generated/in-art, sheet stays open) · Remove. Bleed label via `bleedLabel` (pdfGenerator) |
 | `src/utils/iccProfiles.js` | **Bundled ICC registry.** `BUNDLED_PROFILES` (id/label/`?url`/`condition`/`info`) for the 3 ECI output profiles in `src/assets/icc/` (FOGRA39 default, FOGRA51, FOGRA52) + `DEFAULT_PROFILE_ID`/`UPLOAD_ID`/`getProfileMeta`/`loadBundledProfileBytes` (fetch+cache on demand). `info` = exact lcms description (drives OutputIntent Info + mismatch compare) |
 | `src/utils/vendor/jpegCmykDecoder.selfcheck.js` | `node`-runnable self-check (no framework) for the CMYK decoder: decodes the synthetic CMYK fixture, asserts non-inverted DeviceCMYK + paper-white tripwire, prints APP14 transform. Run: `node src/utils/vendor/jpegCmykDecoder.selfcheck.js` |
@@ -95,7 +94,16 @@ Tokens at the top of `src/index.css`. Also recorded in this project's Claude mem
 
 ## Done recently
 
-- **Mobile Cards action toolbar + Delete-all confirm (most recent):** the Cards tab's lone bottom-right ＋ FAB
+- **Mobile nav redesign — tab bar → bottom action bar (most recent):** removed the 3-item `BottomTabBar`
+  (file deleted). **Cards is now the always-on view**; the bottom bar (`.cards-toolbar`, `space-between`) is
+  **Settings** (left, icon+label) · **[🗑 Delete · ＋ Add (FAB) · ⬇ Save]** (centered `.ct-cluster`) · **Export**
+  (right, icon+label). **Settings and Export open a full-screen `MobilePage` overlay** (slide-up, header + close X)
+  instead of switching tabs — Settings = `PageSettings`, Export = count/missing + low-res warn + Generate PDF
+  (Save list / Delete all live on the bar now). Built per the **ui-ux-pro-max** skill: 5 targets max, ≥44pt /
+  ≥8px spacing, one primary CTA (green ＋), labeled nav items, safe-area bottom margin, border-top separation.
+  Verified live (390px): tab bar gone, bar order, Settings/Export pages open + close, desktop unaffected.
+  Lint + build green.
+- **Mobile Cards action toolbar + Delete-all confirm:** the Cards tab's lone bottom-right ＋ FAB
   is now a **centered bottom toolbar** `.cards-toolbar` = **[🗑 Delete all · ＋ Add (FAB, center) · 🖾 Save list]`**
   (`MobileLayout`). `.mobile-cards` became a flex column so the toolbar sits below the preview + pager (no overlap;
   `.mobile-cards .preview-root` min-height override). **Delete all now asks for confirmation everywhere** — new
