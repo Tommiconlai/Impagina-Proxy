@@ -53,6 +53,7 @@ before restarting.
 | `src/utils/mpcfill.js` | **XML import only — contacts no MPCFill server.** `parseMpcXml(text)` (DOMParser → `{cards:[{id,name,count}]}`, fronts then backs; comma-separated `<slots>` = copies; name from `<query>`) + `fetchMpcImages(cards,onProgress)` (downloads via **`lh3.googleusercontent.com/d/<id>=w2000`** — the only Drive endpoint that sends CORS headers, so the blob is readable/not tainted; `drive.google.com/uc` + `/thumbnail` 403 even through a proxy). Each card → `{file, bleedMode:'full'}`, one entry per copy (same `File` reused); no `name` so MPC art counts as custom in "Save list". (The live MPCFill art-search was removed — see "Done recently".) |
 | `src/components/ScryfallImportModal.jsx` | Modal: paste a card list **or a deck link** (URL field + "Carica" → `fetchDeckList` fills the textarea) → fetch from Scryfall → add to images. Pasted text persisted to `localStorage` (`ip:cardlist`). Accepts `(SET) collector` to pin a printing |
 | `src/components/ArtPickerModal.jsx` | **Scryfall-only** art box. Click a placed card → `fetchPrints` lists every Scryfall printing → pick downloads the PNG to a `File` (`downloadAsFile`) and calls `onPick(file, {bleedMode, set, collector})` — `bleedMode` = `mirror` for full-art/borderless else `stretch` (mirrors the import path). Card name from the **filename**; remounted via `key={id}` |
+| `src/components/Toast.jsx` | Transient feedback toast (`aria-live`), rendered in both App trees; centered above the mobile action bar, auto-dismiss (3.5 s, set in App) + tap-to-close. Driven by App `toast` state `{kind:'success'\|'error', msg}`; used by `handleSaveProject` (replaced the old `notice` box) |
 | `src/components/ConfirmDialog.jsx` | Themed confirm for destructive actions (reuses `.modal`; `.modal.modal-confirm` overrides the mobile full-screen modal so it stays small/centered). Driven by App's `confirm` state `{message,confirmLabel,onConfirm}`; rendered in both App trees. Used by `handleClearAll` ("Delete all") |
 | `src/components/CookieBanner.jsx` | Cookie-consent banner (fixed bottom, centered, matches the modal surface/shadow). Self-contained: shows until the user chooses, persists `ip:cookieConsent` = `accepted`\|`declined` in localStorage. **Settings always live in localStorage (technical)**; this flag only gates any *future* analytics cookies (read the flag before loading them — none today). Rendered once in each App tree (desktop + mobile); on mobile it sits above the bottom-tab bar. Centered via `left:0;right:0;margin-inline:auto` (not `translateX`, which the `fade-up` animation would override) |
 | `src/hooks/useIsMobile.js` | `matchMedia('(max-width: 768px)')` via `useSyncExternalStore` → boolean. App renders the desktop tree above 768px, `MobileLayout` at/below |
@@ -94,7 +95,13 @@ Tokens at the top of `src/index.css`. Also recorded in this project's Claude mem
 
 ## Done recently
 
-- **Mobile nav redesign — tab bar → bottom action bar (most recent):** removed the 3-item `BottomTabBar`
+- **Save-list feedback toast (most recent):** "Save list" gave feedback only via the old `notice` box (desktop
+  sidebar / Export page) — invisible from the mobile Cards bar. Replaced `notice` with a global **`Toast`**
+  (`{kind,msg}` state, auto-dismiss 3.5 s, tap-to-close, `aria-live`), rendered in both App trees, centered above
+  the mobile action bar. `handleSaveProject` now emits success/error toasts (the only `notice` user; `error` stays
+  for generate/import). Verified live (390px): error toast on upload-only save, positioned above the bar, dismisses.
+  Lint + build green.
+- **Mobile nav redesign — tab bar → bottom action bar:** removed the 3-item `BottomTabBar`
   (file deleted). **Cards is now the always-on view**; the bottom bar (`.cards-toolbar`, `space-between`) is
   **Settings** (left, icon+label) · **[🗑 Delete · ＋ Add (FAB) · ⬇ Save]** (centered `.ct-cluster`) · **Export**
   (right, icon+label). **Settings and Export open a full-screen `MobilePage` overlay** (slide-up, header + close X)

@@ -1175,6 +1175,27 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 .btn-danger:hover { filter: brightness(1.08); }
 
+/* Toast transitorio (feedback Save list ecc.). Centrato in basso, sopra la barra
+   azioni mobile; auto-dismiss in App. */
+.toast {
+  position: fixed;
+  left: 0; right: 0; margin-inline: auto;
+  width: max-content; max-width: min(90vw, 520px);
+  bottom: calc(104px + env(safe-area-inset-bottom, 0));
+  z-index: 280;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-md);
+  font-size: 0.85rem; line-height: 1.4; text-align: center;
+  cursor: pointer;
+  animation: fade-up 0.2s ease both;
+}
+.toast-success { border-color: rgba(46, 204, 113, 0.5); }
+.toast-error { border-color: var(--danger); }
+
 /* ============================================================
    COOKIE CONSENT BANNER
    ============================================================ */

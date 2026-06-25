@@ -8,6 +8,7 @@ import MpcImportModal from './components/MpcImportModal';
 import ArtPickerModal from './components/ArtPickerModal';
 import CookieBanner from './components/CookieBanner';
 import ConfirmDialog from './components/ConfirmDialog';
+import Toast from './components/Toast';
 import MobileLayout from './components/MobileLayout';
 import { useIsMobile } from './hooks/useIsMobile';
 import { generatePDF, getGridInfo, PAPER_FORMATS, nextBleedMode } from './utils/pdfGenerator';
@@ -55,7 +56,7 @@ export default function App() {
   const [confirm, setConfirm] = useState(null); // dialog conferma azioni distruttive: { message, confirmLabel, onConfirm }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [notice, setNotice] = useState(null);
+  const [toast, setToast] = useState(null); // feedback transitorio { kind:'success'|'error', msg }
   const [importOpen, setImportOpen] = useState(false);
   const [mpcOpen, setMpcOpen] = useState(false); // import da file XML MPCFill
   const [addMenuOpen, setAddMenuOpen] = useState(false); // menu "+" in sidebar (carica file / Scryfall)
@@ -104,6 +105,13 @@ export default function App() {
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
   }, [addMenuOpen]);
+
+  // Auto-chiusura del toast dopo ~3.5s (tap per chiudere prima).
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3500);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   // Chiude il tooltip "?" al click fuori
   const helpRef = useRef(null);
@@ -215,12 +223,11 @@ export default function App() {
   // Salva la lista delle carte Scryfall in un .txt (formato deck-list → ricaricabile
   // incollandola in "Importa da Scryfall"). Gli upload manuali non entrano nel testo.
   const handleSaveProject = () => {
-    setError(null); setNotice(null);
     const { text, cards, custom } = buildDeckList(images);
     if (!cards) {
-      setError(custom
-        ? 'Only custom images — project save covers Scryfall cards only.'
-        : 'No cards to save.');
+      setToast({ kind: 'error', msg: custom
+        ? 'Only custom images — Save list covers Scryfall cards only.'
+        : 'No cards to save.' });
       return;
     }
     const blob = new Blob([text + '\n'], { type: 'text/plain' });
@@ -229,9 +236,9 @@ export default function App() {
     a.download = 'proxoteca.txt';
     a.click();
     URL.revokeObjectURL(a.href);
-    setNotice(custom
-      ? `Saved ${cards} Scryfall card${cards > 1 ? 's' : ''}. ${custom} custom image${custom > 1 ? 's' : ''} not included (text can't store images).`
-      : `Saved ${cards} Scryfall card${cards > 1 ? 's' : ''} to proxoteca.txt.`);
+    setToast({ kind: 'success', msg: custom
+      ? `Saved ${cards} Scryfall card${cards > 1 ? 's' : ''}. ${custom} custom image${custom > 1 ? 's' : ''} not included.`
+      : `Saved ${cards} Scryfall card${cards > 1 ? 's' : ''} to proxoteca.txt.` });
   };
 
   // Carica + valida un profilo ICC CMYK personalizzato (.icc). Non persistito (binario).
@@ -328,7 +335,7 @@ export default function App() {
           settingsProps={settingsProps}
           previewProps={previewProps}
           actions={{ onGenerate: handleGenerate, onSave: handleSaveProject, onClear: handleClearAll,
-            loading, error, notice, count: images.length, missing, lowResCount, dpi }}
+            loading, error, count: images.length, missing, lowResCount, dpi }}
           // onFiles: il tasto Upload mobile è un <label><input type=file> nativo (gesto
           // reale → apre il picker su mobile, dove open() di react-dropzone è inaffidabile).
           addMenu={{ onFiles: handleImagesAdded, onImport: () => setImportOpen(true), onImportMpc: () => setMpcOpen(true) }}
@@ -339,6 +346,7 @@ export default function App() {
         <CookieBanner />
         <ConfirmDialog open={!!confirm} message={confirm?.message} confirmLabel={confirm?.confirmLabel}
           onConfirm={() => { confirm?.onConfirm?.(); setConfirm(null); }} onCancel={() => setConfirm(null)} />
+        <Toast toast={toast} onClose={() => setToast(null)} />
       </>
     );
   }
@@ -416,9 +424,6 @@ export default function App() {
                 <IconTrash size={15} /> Delete all
               </button>
             </div>
-            {notice && (
-              <div className="info-box"><span>{notice}</span></div>
-            )}
             {error && (
               <div className="info-box info-box-error">
                 <IconAlert size={15} style={{ flexShrink: 0, marginTop: 2 }} />
@@ -455,6 +460,7 @@ export default function App() {
       <CookieBanner />
       <ConfirmDialog open={!!confirm} message={confirm?.message} confirmLabel={confirm?.confirmLabel}
         onConfirm={() => { confirm?.onConfirm?.(); setConfirm(null); }} onCancel={() => setConfirm(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </div>
   );
 }

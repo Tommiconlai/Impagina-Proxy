@@ -117,7 +117,6 @@ export default function MobileLayout({ settingsProps, previewProps, actions, add
               {actions.loading ? <><span className="spinner" /> Generating…</> : <><IconFile size={18} /> Generate PDF</>}
             </button>
             <p className="field-hint">Use <b>Save list</b> (⬇, bottom bar) to export your Scryfall cards as a reloadable deck list.</p>
-            {actions.notice && <div className="info-box"><span>{actions.notice}</span></div>}
             {actions.error && <div className="info-box info-box-error"><span>{actions.error}</span></div>}
           </div>
         </MobilePage>
