@@ -53,6 +53,7 @@ before restarting.
 | `src/utils/mpcfill.js` | **XML import only — contacts no MPCFill server.** `parseMpcXml(text)` (DOMParser → `{cards:[{id,name,count}]}`, fronts then backs; comma-separated `<slots>` = copies; name from `<query>`) + `fetchMpcImages(cards,onProgress)` (downloads via **`lh3.googleusercontent.com/d/<id>=w2000`** — the only Drive endpoint that sends CORS headers, so the blob is readable/not tainted; `drive.google.com/uc` + `/thumbnail` 403 even through a proxy). Each card → `{file, bleedMode:'full'}`, one entry per copy (same `File` reused); no `name` so MPC art counts as custom in "Save list". (The live MPCFill art-search was removed — see "Done recently".) |
 | `src/components/ScryfallImportModal.jsx` | Modal: paste a card list **or a deck link** (URL field + "Carica" → `fetchDeckList` fills the textarea) → fetch from Scryfall → add to images. Pasted text persisted to `localStorage` (`ip:cardlist`). Accepts `(SET) collector` to pin a printing |
 | `src/components/ArtPickerModal.jsx` | **Scryfall-only** art box. Click a placed card → `fetchPrints` lists every Scryfall printing → pick downloads the PNG to a `File` (`downloadAsFile`) and calls `onPick(file, {bleedMode, set, collector})` — `bleedMode` = `mirror` for full-art/borderless else `stretch` (mirrors the import path). Card name from the **filename**; remounted via `key={id}` |
+| `src/components/ConfirmDialog.jsx` | Themed confirm for destructive actions (reuses `.modal`; `.modal.modal-confirm` overrides the mobile full-screen modal so it stays small/centered). Driven by App's `confirm` state `{message,confirmLabel,onConfirm}`; rendered in both App trees. Used by `handleClearAll` ("Delete all") |
 | `src/components/CookieBanner.jsx` | Cookie-consent banner (fixed bottom, centered, matches the modal surface/shadow). Self-contained: shows until the user chooses, persists `ip:cookieConsent` = `accepted`\|`declined` in localStorage. **Settings always live in localStorage (technical)**; this flag only gates any *future* analytics cookies (read the flag before loading them — none today). Rendered once in each App tree (desktop + mobile); on mobile it sits above the bottom-tab bar. Centered via `left:0;right:0;margin-inline:auto` (not `translateX`, which the `fade-up` animation would override) |
 | `src/hooks/useIsMobile.js` | `matchMedia('(max-width: 768px)')` via `useSyncExternalStore` → boolean. App renders the desktop tree above 768px, `MobileLayout` at/below |
 | `src/components/MobileLayout.jsx` | Mobile shell (≤768px): compact header (Logo + `?` tap-tooltip), three bottom tabs via `BottomTabBar` — **Cards** (`PageCanvas` preview + ＋ FAB → add bottom-sheet; `onCardTap` → `CardActionSheet`), **Settings** (reuses `PageSettings`), **Export** (count/missing + low-res warn + Generate/Save/Delete). Presentational only; consumes `settingsProps`/`previewProps`/`actions`/`addMenu` bundles from `App`. Local state: tab, addOpen, sel, helpOpen |
@@ -94,7 +95,15 @@ Tokens at the top of `src/index.css`. Also recorded in this project's Claude mem
 
 ## Done recently
 
-- **Mobile Upload button fix (most recent):** the mobile add-sheet "Upload files" called react-dropzone's
+- **Mobile Cards action toolbar + Delete-all confirm (most recent):** the Cards tab's lone bottom-right ＋ FAB
+  is now a **centered bottom toolbar** `.cards-toolbar` = **[🗑 Delete all · ＋ Add (FAB, center) · 🖾 Save list]`**
+  (`MobileLayout`). `.mobile-cards` became a flex column so the toolbar sits below the preview + pager (no overlap;
+  `.mobile-cards .preview-root` min-height override). **Delete all now asks for confirmation everywhere** — new
+  themed `ConfirmDialog` (reuses `.modal`; `.modal.modal-confirm` stays small/centered even on mobile). `handleClearAll`
+  opens it (one wrapper → desktop sidebar + mobile Export tab + mobile Cards toolbar all get the "Delete all cards?
+  This can't be undone." guard); `ConfirmDialog` rendered in both App trees. Verified live (390px + 1280px): toolbar
+  order/enabled-state, confirm Cancel keeps cards / Delete clears, desktop Delete-all also guarded. Lint + build green.
+- **Mobile Upload button fix:** the mobile add-sheet "Upload files" called react-dropzone's
   `open()` after `setAddOpen(false)` — mobile browsers block a programmatic file-input `.click()` (no trusted
   gesture after the re-render), so nothing opened. Replaced it with a **native `<label><input type=file multiple
   accept="image/*">`** (`.sheet-upload`) in `MobileLayout`, wired to `addMenu.onFiles` = `handleImagesAdded`.

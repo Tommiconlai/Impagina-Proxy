@@ -7,6 +7,7 @@ import ScryfallImportModal from './components/ScryfallImportModal';
 import MpcImportModal from './components/MpcImportModal';
 import ArtPickerModal from './components/ArtPickerModal';
 import CookieBanner from './components/CookieBanner';
+import ConfirmDialog from './components/ConfirmDialog';
 import MobileLayout from './components/MobileLayout';
 import { useIsMobile } from './hooks/useIsMobile';
 import { generatePDF, getGridInfo, PAPER_FORMATS, nextBleedMode } from './utils/pdfGenerator';
@@ -51,6 +52,7 @@ export default function App() {
     return v === UPLOAD_ID || getProfileMeta(v) ? v : DEFAULT_PROFILE_ID;
   });
   const [uploadedIcc, setUploadedIcc] = useState(null); // { bytes, name } profilo caricato (non persistito)
+  const [confirm, setConfirm] = useState(null); // dialog conferma azioni distruttive: { message, confirmLabel, onConfirm }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
@@ -162,9 +164,14 @@ export default function App() {
     });
   };
 
+  // Elimina tutte: passa SEMPRE dalla conferma (desktop + mobile export + mobile cards).
   const handleClearAll = () => {
-    images.forEach(i => URL.revokeObjectURL(i.preview));
-    setImages([]);
+    if (images.length === 0) return;
+    setConfirm({
+      message: 'Delete all cards? This can’t be undone.',
+      confirmLabel: 'Delete all',
+      onConfirm: () => setImages(prev => { prev.forEach(i => URL.revokeObjectURL(i.preview)); return []; }),
+    });
   };
 
   // Abbondanza on/off per carta: none ↔ stretch. Lo stile globale può poi forzare
@@ -330,6 +337,8 @@ export default function App() {
         <MpcImportModal open={mpcOpen} onClose={() => setMpcOpen(false)} onImport={addItems} />
         {editing && <ArtPickerModal key={editing.id} card={editing} onClose={() => setEditingId(null)} onPick={handleReplaceArt} />}
         <CookieBanner />
+        <ConfirmDialog open={!!confirm} message={confirm?.message} confirmLabel={confirm?.confirmLabel}
+          onConfirm={() => { confirm?.onConfirm?.(); setConfirm(null); }} onCancel={() => setConfirm(null)} />
       </>
     );
   }
@@ -444,6 +453,8 @@ export default function App() {
       )}
 
       <CookieBanner />
+      <ConfirmDialog open={!!confirm} message={confirm?.message} confirmLabel={confirm?.confirmLabel}
+        onConfirm={() => { confirm?.onConfirm?.(); setConfirm(null); }} onCancel={() => setConfirm(null)} />
     </div>
   );
 }

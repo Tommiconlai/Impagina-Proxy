@@ -33,7 +33,12 @@ export default function MobileLayout({ settingsProps, previewProps, actions, add
         {tab === 'cards' && (
           <div className="mobile-cards">
             <PagePreview {...previewProps} onCardTap={setSel} />
-            <button className="fab" onClick={() => setAddOpen(true)} aria-label="Add cards"><IconPlus size={26} /></button>
+            {/* Toolbar Cards: Elimina tutte (sx) · ＋ Aggiungi (centro, FAB) · Salva lista (dx) */}
+            <div className="cards-toolbar">
+              <button className="ct-btn ct-danger" onClick={actions.onClear} disabled={actions.count === 0} aria-label="Delete all"><IconTrash size={20} /></button>
+              <button className="fab" onClick={() => setAddOpen(true)} aria-label="Add cards"><IconPlus size={26} /></button>
+              <button className="ct-btn ct-save" onClick={actions.onSave} disabled={actions.count === 0} aria-label="Save list"><IconDownload size={20} /></button>
+            </div>
             {addOpen && (
               <div className="sheet-overlay" onClick={() => setAddOpen(false)}>
                 <div className="sheet" onClick={(e) => e.stopPropagation()} role="menu">

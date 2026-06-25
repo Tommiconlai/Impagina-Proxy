@@ -1150,6 +1150,31 @@ input[type="range"]::-webkit-slider-thumb:hover {
   padding: 10px 22px;
 }
 
+/* Dialog di conferma (azioni distruttive). `.modal.modal-confirm` (2 classi) vince
+   sull'override mobile full-screen di `.modal`, restando piccolo e centrato. */
+.modal.modal-confirm {
+  width: min(360px, 92vw);
+  min-width: 0;
+  height: auto;
+  max-height: none;
+  border-radius: 16px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.confirm-body { display: flex; gap: 12px; align-items: flex-start; }
+.confirm-body svg { color: var(--danger); flex-shrink: 0; margin-top: 1px; }
+.confirm-body p { margin: 0; color: var(--text-primary); font-size: 0.95rem; line-height: 1.5; }
+.btn-danger {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px 18px; border-radius: var(--radius-sm);
+  border: 1px solid var(--danger); background: var(--danger); color: #fff;
+  font-family: var(--font); font-weight: 600; font-size: 0.9rem; cursor: pointer;
+  transition: filter var(--transition);
+}
+.btn-danger:hover { filter: brightness(1.08); }
+
 /* ============================================================
    COOKIE CONSENT BANNER
    ============================================================ */
@@ -1601,11 +1626,25 @@ body::before {
 .mobile-export { padding: 20px 16px; display: flex; flex-direction: column; gap: 12px; }
 .export-summary { font-size: 0.95rem; color: var(--text-secondary); }
 .export-summary strong { color: var(--text-primary); font-size: 1.4rem; }
-.mobile-cards { height: 100%; position: relative; }
-.fab { position: absolute; right: 18px; bottom: 18px; width: 52px; height: 52px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center; z-index: 10;
+.mobile-cards { height: 100%; position: relative; display: flex; flex-direction: column; }
+/* Override del min-height:75vh mobile su .preview-root: in colonna deve cedere
+   spazio alla toolbar invece di forzare l'altezza. */
+.mobile-cards .preview-root { min-height: 0; }
+/* Toolbar in fondo al tab Cards: 3 azioni centrate (Elimina · ＋ · Salva). */
+.cards-toolbar { flex: none; display: flex; align-items: center; justify-content: center; gap: 30px;
+  padding: 10px 16px calc(12px + env(safe-area-inset-bottom, 0)); }
+.fab { width: 54px; height: 54px; border-radius: 50%; flex: none;
+  display: flex; align-items: center; justify-content: center;
   border: 1.5px solid rgba(46,204,113,0.6); background: rgba(46,204,113,0.18); color: #2ecc71;
   box-shadow: 0 6px 20px rgba(46,204,113,0.28); cursor: pointer; }
+.ct-btn { width: 50px; height: 50px; border-radius: 50%; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text-secondary);
+  cursor: pointer; transition: border-color var(--transition), color var(--transition), background var(--transition); }
+.ct-btn:disabled { opacity: 0.4; cursor: default; }
+.ct-danger:not(:disabled) { color: var(--danger); border-color: rgba(239,68,68,0.4); }
+.ct-save:not(:disabled) { color: #2ecc71; border-color: rgba(46,204,113,0.4); }
+.ct-btn:not(:disabled):active { background: var(--bg-glass-hover); }
 .sheet-overlay { position: absolute; inset: 0; z-index: 40; background: rgba(8,9,12,0.5);
   display: flex; align-items: flex-end; animation: fade-up 0.15s ease both; }
 .sheet { width: 100%; background: var(--bg-elevated); border-top: 1px solid var(--border);
