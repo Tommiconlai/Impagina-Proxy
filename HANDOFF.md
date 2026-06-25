@@ -94,10 +94,12 @@ Tokens at the top of `src/index.css`. Also recorded in this project's Claude mem
 
 ## Done recently
 
-- **Mobile Upload button fix (most recent):** the `react-dropzone` `<input {...getInputProps()}>` was rendered
-  only in the desktop tree, so on mobile `open()` had no input to click → the Upload sheet button did nothing.
-  Now the input is mounted in the mobile branch too. Verified live (390px): Upload clicks the input + the file
-  pipeline adds a card.
+- **Mobile Upload button fix (most recent):** the mobile add-sheet "Upload files" called react-dropzone's
+  `open()` after `setAddOpen(false)` — mobile browsers block a programmatic file-input `.click()` (no trusted
+  gesture after the re-render), so nothing opened. Replaced it with a **native `<label><input type=file multiple
+  accept="image/*">`** (`.sheet-upload`) in `MobileLayout`, wired to `addMenu.onFiles` = `handleImagesAdded`.
+  Tapping the label opens the picker via a real gesture (same pattern as the ICC upload). Desktop still uses
+  react-dropzone `open()`. Verified live (390px): picker structure + file → card added, sheet closes.
 - **Import resilience: CORS-proxy fallback + Scryfall retry:** the deck-link import used a single
   `corsproxy.io` which started returning 403 (now key-gated) → "Failed to fetch". Replaced with a **fallback chain**
   (`CORS_PROXIES`: allorigins → codetabs → corsproxy.io) via `fetchViaProxy` (first proxy that responds ok wins).

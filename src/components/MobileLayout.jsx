@@ -38,7 +38,11 @@ export default function MobileLayout({ settingsProps, previewProps, actions, add
               <div className="sheet-overlay" onClick={() => setAddOpen(false)}>
                 <div className="sheet" onClick={(e) => e.stopPropagation()} role="menu">
                   <div className="sheet-handle" />
-                  <button role="menuitem" onClick={() => { setAddOpen(false); addMenu.onUpload(); }}><IconImage size={18} /> Upload files</button>
+                  <label role="menuitem" className="sheet-upload">
+                    <input type="file" accept="image/*" multiple hidden
+                      onChange={(e) => { const fs = [...e.target.files]; e.target.value = ''; setAddOpen(false); if (fs.length) addMenu.onFiles(fs); }} />
+                    <IconImage size={18} /> Upload files
+                  </label>
                   <button role="menuitem" onClick={() => { setAddOpen(false); addMenu.onImport(); }}><IconDownload size={18} /> Import from Scryfall</button>
                   <button role="menuitem" onClick={() => { setAddOpen(false); addMenu.onImportMpc(); }}><IconFile size={18} /> Import from MPCFill</button>
                 </div>

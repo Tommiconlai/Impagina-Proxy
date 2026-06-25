@@ -317,16 +317,14 @@ export default function App() {
   if (isMobile) {
     return (
       <>
-        {/* Input file di react-dropzone: nel ramo desktop è dentro la preview; qui va
-            montato esplicitamente, altrimenti open() (tasto Upload mobile) non ha
-            l'<input> su cui fare click e non apre nulla. */}
-        <input {...getInputProps()} />
         <MobileLayout
           settingsProps={settingsProps}
           previewProps={previewProps}
           actions={{ onGenerate: handleGenerate, onSave: handleSaveProject, onClear: handleClearAll,
             loading, error, notice, count: images.length, missing, lowResCount, dpi }}
-          addMenu={{ onUpload: open, onImport: () => setImportOpen(true), onImportMpc: () => setMpcOpen(true) }}
+          // onFiles: il tasto Upload mobile è un <label><input type=file> nativo (gesto
+          // reale → apre il picker su mobile, dove open() di react-dropzone è inaffidabile).
+          addMenu={{ onFiles: handleImagesAdded, onImport: () => setImportOpen(true), onImportMpc: () => setMpcOpen(true) }}
         />
         <ScryfallImportModal open={importOpen} onClose={() => setImportOpen(false)} onImport={addItems} />
         <MpcImportModal open={mpcOpen} onClose={() => setMpcOpen(false)} onImport={addItems} />
