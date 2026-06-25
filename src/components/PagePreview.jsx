@@ -272,14 +272,17 @@ export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, dp
     useEffect(() => {
         if (!selectMode) return;
         const onKey = (e) => {
-            const t = e.target;
-            if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
-            if ((e.key === 'Delete' || e.key === 'Backspace') && selected.size) {
-                e.preventDefault(); onRemoveMany?.(selectedIds); clearSel();
-            } else if (e.key === 'Escape' && selected.size) {
+            const tag = e.target?.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target?.isContentEditable) return;
+            if (e.key === 'Escape' && selected.size) {
                 clearSel();
             } else if ((e.key === 'a' || e.key === 'A') && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault(); setSelected(new Set(images.map(i => i.id)));
+            } else if (e.key === 'Delete' && selected.size && tag !== 'BUTTON' && tag !== 'A') {
+                // Solo Delete (non Backspace = riflesso "indietro") e solo se il focus NON è su un
+                // controllo: così tabulando tra le carte non si cancella la selezione per sbaglio.
+                // La via esplicita resta il bottone Delete nella bulk-bar.
+                e.preventDefault(); onRemoveMany?.(selectedIds); clearSel();
             }
         };
         window.addEventListener('keydown', onKey);
@@ -394,7 +397,9 @@ export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, dp
             </div>
 
             <div className="preview-footer">
-                {selectMode && selectedIds.length > 0 ? (
+                {/* La bulk-bar è una RIGA a sé: il pager resta sempre visibile (niente trappola
+                    sulla pagina corrente quando c'è una selezione su un foglio multi-pagina). */}
+                {selectMode && selectedIds.length > 0 && (
                     <div className="bulk-bar" role="toolbar" aria-label="Selected cards">
                         <span className="bulk-count">{selectedIds.length} selected</span>
                         <button type="button" className="bulk-btn" onClick={() => onBleedMany?.(selectedIds)}>
@@ -405,30 +410,29 @@ export default function PagePreview({ images, formatKey, bleedMm, bleedStyle, dp
                         </button>
                         <button type="button" className="bulk-btn bulk-clear" onClick={clearSel}>Clear</button>
                     </div>
-                ) : (<>
-                    {totalPages > 1 && (
-                        <div className="preview-nav">
-                            <button
-                                className="nav-btn"
-                                disabled={!canPrev}
-                                onClick={() => setPageOffset(page - 1)}
-                                aria-label="Previous page"
-                            >‹</button>
-                            <span className="nav-info">{page + 1}/{totalPages}</span>
-                            <button
-                                className="nav-btn"
-                                disabled={!canNext}
-                                onClick={() => setPageOffset(page + 1)}
-                                aria-label="Next page"
-                            >›</button>
-                        </div>
-                    )}
-                    {images.length > 0 && (
-                        <span className="preview-count">
-                            {images.length} img{missing > 0 ? ` · ${missing} to fill the page` : ''}
-                        </span>
-                    )}
-                </>)}
+                )}
+                {totalPages > 1 && (
+                    <div className="preview-nav">
+                        <button
+                            className="nav-btn"
+                            disabled={!canPrev}
+                            onClick={() => setPageOffset(page - 1)}
+                            aria-label="Previous page"
+                        >‹</button>
+                        <span className="nav-info">{page + 1}/{totalPages}</span>
+                        <button
+                            className="nav-btn"
+                            disabled={!canNext}
+                            onClick={() => setPageOffset(page + 1)}
+                            aria-label="Next page"
+                        >›</button>
+                    </div>
+                )}
+                {images.length > 0 && !(selectMode && selectedIds.length > 0) && (
+                    <span className="preview-count">
+                        {images.length} img{missing > 0 ? ` · ${missing} to fill the page` : ''}
+                    </span>
+                )}
             </div>
         </div>
     );

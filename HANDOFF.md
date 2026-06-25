@@ -95,7 +95,26 @@ Tokens at the top of `src/index.css`. Also recorded in this project's Claude mem
 
 ## Done recently
 
-- **UX critique P3 — Save-list icon disambiguation (most recent):** the mobile action bar had **two adjacent
+- **Re-critique P1 regressions — multi-select rough edges (most recent):** an impeccable re-`critique`
+  (multi-agent: 6 lenses + adversarial verify of every finding) scored **31/40** (up from 29) but flagged that
+  the desktop multi-select feature shipped with **2 P1 regressions**, both fixed here in `PagePreview.jsx`:
+  - **Trapped pager:** the bulk bar and the pager were the two branches of one footer ternary, so selecting any
+    card on a multi-page sheet **removed the pager + page indicator** — you couldn't change page or build a
+    cross-page selection by clicking. Now the bulk bar is its own footer row and the pager **always renders**
+    when `totalPages>1` (the plain count hides while the bulk bar shows, since the bar has its own count). The
+    `selected` Set is id-keyed so it survives page changes. Verified live (24 cards / 2 pages): select → pager
+    stays, Next → page 2 with selection intact.
+  - **Backspace wiped the selection:** the window keydown guard bailed on INPUT/TEXTAREA/SELECT but **not BUTTON**,
+    so a keyboard user tabbing through cards who hit Backspace (the "go back" reflex) wiped the whole selection.
+    Now **Backspace is dropped** (only `Delete` deletes) and `Delete` fires **only when focus is not on a
+    BUTTON/A** — tabbing through cards can't trigger it; the explicit path is the bulk-bar Delete button (Esc /
+    Ctrl+A unchanged). Verified live: Backspace/Delete on a focused card = no wipe; Delete from background = deletes.
+  - Adversarial verify also **killed 3 false-positive findings** (a non-existent `img.file` crash, a "no escape"
+    claim refuted by the visible Clear button, a "double outline" refuted by CSS cascade). **Deferred P2 backlog**
+    (acknowledged, not done): Generate-PDF success toast, undo for delete, Ctrl+A all-pages scope, bulk-Bleed
+    convergence+feedback, multi-select discoverability hint, keyboard selection, card label = real Scryfall name,
+    degenerate-sheet warning. Lint + build green.
+- **UX critique P3 — Save-list icon disambiguation:** the mobile action bar had **two adjacent
   down-arrow glyphs** — Save list (`IconDownload` ⬇) next to Export (`IconFile`, whose path includes a download
   arrow) — and the cluster buttons are icon-only, so "which one makes the PDF?" was ambiguous. Added a distinct
   **`IconList`** (elenco/list glyph) and swapped it into **Save list** on both mobile (`MobileLayout` `.ct-save`)
